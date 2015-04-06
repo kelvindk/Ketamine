@@ -5,6 +5,9 @@
 #define MAX_PKT_SIZE    128
 #define RX_BUFF_SIZE    500
 
+#define TMP102_ADDRESS             0x49
+#define REG_READ_TMP102            0x00
+
 //===================================================
 
 /* States for CRC parser */
@@ -38,6 +41,8 @@ extern uint8 serialBuffer[RX_BUFF_SIZE];
  * Task Initialization for the BLE Application
  */
 extern void SerialInterface_Init( uint8 task_id );
+
+extern void HalAccSelect(void);
 
 /*
  * Task Event Processor for the BLE Application

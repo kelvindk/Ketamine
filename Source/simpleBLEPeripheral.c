@@ -50,6 +50,8 @@
 #include "hal_led.h"
 #include "hal_key.h"
 #include "hal_lcd.h"
+#include "hal_i2c.h"
+#include "hal_sensor.h"
 
 #include "gatt.h"
 
@@ -86,8 +88,8 @@
  */
 
 // How often to perform periodic event
-#define SBP_PERIODIC_EVT_PERIOD                   100
-//#define SBP_PERIODIC_EVT_PERIOD                   4000
+//#define SBP_PERIODIC_EVT_PERIOD                   100
+#define SBP_PERIODIC_EVT_PERIOD                   1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -298,7 +300,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
     //uint16 gapRole_AdvertOffTime = 0;
       
     // Advertisement time : 1.9sec
-    uint16 gapRole_AdvertOffTime = 9900;
+    uint16 gapRole_AdvertOffTime = 0;
     
 
     uint8 enable_update_request = DEFAULT_ENABLE_UPDATE_REQUEST;
@@ -490,7 +492,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 
   if ( events & SBP_PERIODIC_EVT )
   {
-    
+    P1_1 = ~P1_1;
     if( gapProfileState != GAPROLE_CONNECTED )
     {
       uint8 current_adv_enabled_status;
@@ -504,7 +506,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = TRUE;
         if ( SBP_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, 2000 );
+          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD );
         }
       }
       else
@@ -512,7 +514,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = FALSE;
         if ( SBP_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, 2000 ); // adjust duty cycle 8000
+          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD  ); // adjust duty cycle 8000
         }
       }
 
@@ -524,6 +526,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     // Restart timer
     else if ( SBP_PERIODIC_EVT_PERIOD )
     {
+      performPeriodicTask();
       osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, 2000 );  // adjust duty cycle
     }
 
@@ -793,13 +796,22 @@ static void performPeriodicTask( void )
   attHandleValueNoti_t noti;      
   //dummy handle
   noti.handle = 0x2E;  
-  noti.len = 20;
-  uint8 i;
+//  noti.len = 20;
+//  uint8 i;
+//  
+//  for (i= 0; i < 20; i++)
+//  {
+//    noti.value[i] = message_counter;
+//  }
+  noti.len = 3;
+  uint8 bytes[2] = {12, 13};
+  HalAccSelect();
+  HalSensorReadReg(REG_READ_TMP102, bytes, 2);
+  int16 TemperatureSum = ((bytes[0] << 8) | bytes[1]) >> 4; 
+  noti.value[0] = bytes[0];
+  noti.value[1] = bytes[1];
+  noti.value[2] = '\n';
   
-  for (i= 0; i < 20; i++)
-  {
-    noti.value[i] = message_counter;
-  }
   if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
   {
     message_counter++;

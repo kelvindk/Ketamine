@@ -3,6 +3,7 @@
 #include "simpleBLEPeripheral.h"
 #include "bcomdef.h"
 #include "hal_led.h"
+#include "hal_i2c.h"
 
 #include "string.h"
 
@@ -19,6 +20,7 @@ uint8 serialInterface_TaskID;   // Task ID for internal task/event processing
 
 #define RX_BUFF_BIO_SIZE    50
 #define RX_BUFF_ECG_SIZE    10
+
 
 uint8 pktBuf[RX_BUFF_BIO_SIZE];
 uint8 preamble = FALSE; // preamble includes FF, 7F, Type
@@ -257,4 +259,10 @@ uint16 circular_add(uint16 x, uint16 y)
     sum = 0;
   }
   return sum;
+}
+
+void HalAccSelect(void)
+{
+  //Set up I2C that is used to communicate with TMP102
+  HalI2CInit(TMP102_ADDRESS, i2cClock_267KHZ);
 }
