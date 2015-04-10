@@ -52,6 +52,8 @@
 #include "hal_lcd.h"
 #include "hal_i2c.h"
 #include "hal_sensor.h"
+#include "hal_uart.h"
+#include "npi.h"
 
 #include "gatt.h"
 
@@ -804,13 +806,16 @@ static void performPeriodicTask( void )
 //    noti.value[i] = message_counter;
 //  }
   noti.len = 3;
-  uint8 bytes[2] = {12, 13};
-  HalAccSelect();
+  uint8 bytes[3] = {0, 0, '\n'};
+  HalTmpSelect();
   HalSensorReadReg(REG_READ_TMP102, bytes, 2);
   int16 TemperatureSum = ((bytes[0] << 8) | bytes[1]) >> 4; 
   noti.value[0] = bytes[0];
   noti.value[1] = bytes[1];
   noti.value[2] = '\n';
+  OpenPic32();
+  uint8 success_len = HalUARTWrite(NPI_UART_PORT, (uint8*)bytes, 3);
+  noti.value[2] = success_len;
   
   if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
   {

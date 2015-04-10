@@ -42,7 +42,7 @@ extern uint8 serialBuffer[RX_BUFF_SIZE];
  */
 extern void SerialInterface_Init( uint8 task_id );
 
-extern void HalAccSelect(void);
+extern void HalTmpSelect(void);
 
 /*
  * Task Event Processor for the BLE Application

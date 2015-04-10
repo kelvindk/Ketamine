@@ -261,7 +261,7 @@ uint16 circular_add(uint16 x, uint16 y)
   return sum;
 }
 
-void HalAccSelect(void)
+void HalTmpSelect(void)
 {
   //Set up I2C that is used to communicate with TMP102
   HalI2CInit(TMP102_ADDRESS, i2cClock_267KHZ);
