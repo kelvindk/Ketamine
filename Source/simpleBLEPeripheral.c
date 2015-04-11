@@ -54,6 +54,7 @@
 #include "hal_sensor.h"
 #include "hal_uart.h"
 #include "npi.h"
+#include "TCS3414CS.h"
 
 #include "gatt.h"
 
@@ -807,16 +808,28 @@ static void performPeriodicTask( void )
 //  }
   noti.len = 3;
   uint8 bytes[3] = {0, 0, '\n'};
+  
+  /*
   HalTmpSelect();
   HalSensorReadReg(REG_READ_TMP102, bytes, 2);
   int16 TemperatureSum = ((bytes[0] << 8) | bytes[1]) >> 4; 
   noti.value[0] = bytes[0];
   noti.value[1] = bytes[1];
-  noti.value[2] = '\n';
-  OpenPic32();
+  noti.value[2] = '\n'; 
   uint8 success_len = HalUARTWrite(NPI_UART_PORT, (uint8*)bytes, 3);
   noti.value[2] = success_len;
+  */
   
+  HalColorInit();
+  struct RGBC rgbc = ReadRGB();
+  int x = rgbc.clear;
+  for (uint8 i = 0; i < 2; ++i) {
+  // Convert to unsigned char* because a char is 1 byte in size.
+  // That is guaranteed by the standard.
+  // Note that is it NOT required to be 8 bits in size.
+    noti.value[i] = *((uint8*)&x + i);
+  }
+  noti.value[2] = '\n';
   if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
   {
     message_counter++;

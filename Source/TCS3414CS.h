@@ -67,17 +67,17 @@ extern struct RGBC{
 	int blue;
 	int green;
 	int clear;
-};
+}RGBC;
 
 extern void HalColorInit(void);
-extern RGBC ReadRGB(void);
+extern struct RGBC ReadRGB(void);
 extern void calculateCoordinate(void);
 
 // Helper functions
 
-void setTimingReg(int x);
-void setInterruptSourceReg(int x);
-void setInterruptControlReg(int x);
-void setGain(int x);
+void setTimingReg(uint8 x);
+void setInterruptSourceReg(uint8 x);
+void setInterruptControlReg(uint8 x);
+void setGain(uint8 x);
 void setEnableADC(void);
 void clearInterrupt(void);
