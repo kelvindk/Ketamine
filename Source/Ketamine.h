@@ -1,5 +1,5 @@
 /**************************************************************************************************
-  Filename:       simpleBLEperipheral.h
+  Filename:       Ketamin.h
   Revised:        $Date: 2010-08-01 14:03:16 -0700 (Sun, 01 Aug 2010) $
   Revision:       $Revision: 23256 $
 
@@ -37,8 +37,8 @@
   contact Texas Instruments Incorporated at www.TI.com.
 **************************************************************************************************/
 
-#ifndef SIMPLEBLEPERIPHERAL_H
-#define SIMPLEBLEPERIPHERAL_H
+#ifndef Ketamine_H
+#define Ketamine_H
 
 #ifdef __cplusplus
 extern "C"
@@ -55,8 +55,8 @@ extern "C"
 
 
 // Simple BLE Peripheral Task Events
-#define SBP_START_DEVICE_EVT                              0x0001
-#define SBP_PERIODIC_EVT                                  0x0002
+#define KTM_START_DEVICE_EVT                              0x0001
+#define KTM_PERIODIC_EVT                                  0x0002
 
 /*********************************************************************
  * MACROS
@@ -67,18 +67,18 @@ extern "C"
  */
    
    
-extern void OpenPic32(void);
-extern void ClosePic32(void);
+extern void OpenUART(void);
+extern void CloseUART(void);
 
 /*
  * Task Initialization for the BLE Application
  */
-extern void SimpleBLEPeripheral_Init( uint8 task_id );
+extern void Ketamine_Init( uint8 task_id );
 
 /*
  * Task Event Processor for the BLE Application
  */
-extern uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events );
+extern uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events );
 
 /*********************************************************************
 *********************************************************************/
@@ -87,4 +87,4 @@ extern uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events );
 }
 #endif
 
-#endif /* SIMPLEBLEPERIPHERAL_H */
+#endif /* Ketamine_H */

@@ -1,5 +1,5 @@
 /**************************************************************************************************
-  Filename:       OSAL_SimpleBLEPeripheral.c
+  Filename:       OSAL_Ketamine.c
   Revised:        $Date: 2010-08-01 14:02:20 -0700 (Sun, 01 Aug 2010) $
   Revision:       $Revision: 23255 $
 
@@ -75,7 +75,7 @@
 
 
 /* Application */
-#include "simpleBLEPeripheral.h"
+#include "Ketamine.h"
 
 #include "serialInterface.h"
 
@@ -100,7 +100,7 @@ const pTaskEventHandlerFn tasksArr[] =
   GAPBondMgr_ProcessEvent,                                          // task 9
   GATTServApp_ProcessEvent,                                         // task 10
   SerialInterface_ProcessEvent,                                     // task 11
-  SimpleBLEPeripheral_ProcessEvent                                  // task 12
+  Ketamine_ProcessEvent                                  // task 12
 };
 
 const uint8 tasksCnt = sizeof( tasksArr ) / sizeof( tasksArr[0] );
@@ -162,7 +162,7 @@ void osalInitTasks( void )
   SerialInterface_Init(taskID++ );
 
   /* Application */
-  SimpleBLEPeripheral_Init( taskID );
+  Ketamine_Init( taskID );
 }
 
 /*********************************************************************

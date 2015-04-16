@@ -1,5 +1,5 @@
 /**************************************************************************************************
-  Filename:       simpleBLEPeripheral.c
+  Filename:       Ketamine.c
   Revised:        $Date: 2010-08-06 08:56:11 -0700 (Fri, 06 Aug 2010) $
   Revision:       $Revision: 23333 $
 
@@ -73,7 +73,7 @@
 
 #include "gapbondmgr.h"
 
-#include "simpleBLEPeripheral.h"
+#include "Ketamine.h"
 
 #include "serialInterface.h"
 
@@ -91,8 +91,8 @@
  */
 
 // How often to perform periodic event
-//#define SBP_PERIODIC_EVT_PERIOD                   100
-#define SBP_PERIODIC_EVT_PERIOD                   1000
+//#define KTM_PERIODIC_EVT_PERIOD                   100
+#define KTM_PERIODIC_EVT_PERIOD                   4000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -154,7 +154,7 @@
  */
 static uint8 message_counter = 0;
 
-static uint8 simpleBLEPeripheral_TaskID;   // Task ID for internal task/event processing
+static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
 
 static gaprole_States_t gapProfileState = GAPROLE_INIT;
 
@@ -224,13 +224,13 @@ static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 /*********************************************************************
  * LOCAL FUNCTIONS
  */
-static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg );
+static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg );
 static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 
 #if defined( CC2540_MINIDK )
-static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys );
+static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
 #endif
 
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -244,21 +244,21 @@ static char *bdAddr2Str ( uint8 *pAddr );
  */
 
 // GAP Role Callbacks
-static gapRolesCBs_t simpleBLEPeripheral_PeripheralCBs =
+static gapRolesCBs_t Ketamine_PeripheralCBs =
 {
   peripheralStateNotificationCB,  // Profile State Change Callbacks
   NULL                            // When a valid RSSI is read from controller (not used by application)
 };
 
 // GAP Bond Manager Callbacks
-static gapBondCBs_t simpleBLEPeripheral_BondMgrCBs =
+static gapBondCBs_t Ketamine_BondMgrCBs =
 {
   NULL,                     // Passcode callback (not used by application)
   NULL                      // Pairing / Bonding state Callback (not used by application)
 };
 
 // Simple GATT Profile Callbacks
-static simpleProfileCBs_t simpleBLEPeripheral_SimpleProfileCBs =
+static simpleProfileCBs_t Ketamine_SimpleProfileCBs =
 {
   simpleProfileChangeCB    // Charactersitic value change callback
 };
@@ -267,7 +267,7 @@ static simpleProfileCBs_t simpleBLEPeripheral_SimpleProfileCBs =
  */
 
 /*********************************************************************
- * @fn      SimpleBLEPeripheral_Init
+ * @fn      Ketamine_Init
  *
  * @brief   Initialization function for the Simple BLE Peripheral App Task.
  *          This is called during initialization and should contain
@@ -280,9 +280,9 @@ static simpleProfileCBs_t simpleBLEPeripheral_SimpleProfileCBs =
  *
  * @return  none
  */
-void SimpleBLEPeripheral_Init( uint8 task_id )
+void Ketamine_Init( uint8 task_id )
 {
-  simpleBLEPeripheral_TaskID = task_id;
+  Ketamine_TaskID = task_id;
 
   // Setup the GAP
   VOID GAP_SetParamValue( TGAP_CONN_PAUSE_PERIPHERAL, DEFAULT_CONN_PAUSE_PERIPHERAL );
@@ -382,7 +382,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
   SK_AddService( GATT_ALL_SERVICES ); // Simple Keys Profile
 
   // Register for all key events - This app will handle all key events
-  RegisterForKeys( simpleBLEPeripheral_TaskID );
+  RegisterForKeys( Ketamine_TaskID );
 
   // makes sure LEDs are off
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
@@ -421,7 +421,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
   // Register callback with SimpleGATTprofile
-  VOID SimpleProfile_RegisterAppCBs( &simpleBLEPeripheral_SimpleProfileCBs );
+  VOID SimpleProfile_RegisterAppCBs( &Ketamine_SimpleProfileCBs );
 
   // Enable clock divide on halt
   // This reduces active current while radio is active and CC254x MCU
@@ -443,11 +443,11 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
 //  HCI_EXT_HaltDuringRfCmd(HCI_EXT_HALT_DURING_RF_DISABLE);
   
   // Setup a delayed profile startup
-  osal_set_event( simpleBLEPeripheral_TaskID, SBP_START_DEVICE_EVT );
+  osal_set_event( Ketamine_TaskID, KTM_START_DEVICE_EVT );
 }
 
 /*********************************************************************
- * @fn      SimpleBLEPeripheral_ProcessEvent
+ * @fn      Ketamine_ProcessEvent
  *
  * @brief   Simple BLE Peripheral Application Task event processor.  This function
  *          is called to process all events for the task.  Events
@@ -459,7 +459,7 @@ void SimpleBLEPeripheral_Init( uint8 task_id )
  *
  * @return  events not processed
  */
-uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
+uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 {
 
   VOID task_id; // OSAL required parameter that isn't used in this function
@@ -468,9 +468,9 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
   {
     uint8 *pMsg;
 
-    if ( (pMsg = osal_msg_receive( simpleBLEPeripheral_TaskID )) != NULL )
+    if ( (pMsg = osal_msg_receive( Ketamine_TaskID )) != NULL )
     {
-//      simpleBLEPeripheral_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
+//      Ketamine_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
 
       // Release the OSAL message
       VOID osal_msg_deallocate( pMsg );
@@ -480,20 +480,20 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     return (events ^ SYS_EVENT_MSG);
   }
 
-  if ( events & SBP_START_DEVICE_EVT )
+  if ( events & KTM_START_DEVICE_EVT )
   {
     // Start the Device
-    VOID GAPRole_StartDevice( &simpleBLEPeripheral_PeripheralCBs );
+    VOID GAPRole_StartDevice( &Ketamine_PeripheralCBs );
 
     // Start Bond Manager
-    VOID GAPBondMgr_Register( &simpleBLEPeripheral_BondMgrCBs );
+    VOID GAPBondMgr_Register( &Ketamine_BondMgrCBs );
     
-    osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD );
+    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD );
 
-    return ( events ^ SBP_START_DEVICE_EVT );
+    return ( events ^ KTM_START_DEVICE_EVT );
   }
 
-  if ( events & SBP_PERIODIC_EVT )
+  if ( events & KTM_PERIODIC_EVT )
   {
     P1_1 = ~P1_1;
     if( gapProfileState != GAPROLE_CONNECTED )
@@ -507,17 +507,17 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
       if( current_adv_enabled_status == FALSE )
       {
         new_adv_enabled_status = TRUE;
-        if ( SBP_PERIODIC_EVT_PERIOD )
+        if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD );
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD );
         }
       }
       else
       {
         new_adv_enabled_status = FALSE;
-        if ( SBP_PERIODIC_EVT_PERIOD )
+        if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, SBP_PERIODIC_EVT_PERIOD  ); // adjust duty cycle 8000
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD  ); // adjust duty cycle 8000
         }
       }
 
@@ -527,16 +527,16 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
     
     
     // Restart timer
-    else if ( SBP_PERIODIC_EVT_PERIOD )
+    else if ( KTM_PERIODIC_EVT_PERIOD )
     {
       performPeriodicTask();
-      osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, 2000 );  // adjust duty cycle
+      osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
     }
 
     // Perform periodic application task
 //    performPeriodicTask();
 
-    return (events ^ SBP_PERIODIC_EVT);
+    return (events ^ KTM_PERIODIC_EVT);
   }
 
   // Discard unknown events
@@ -544,7 +544,7 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
 }
 
 /*********************************************************************
- * @fn      simpleBLEPeripheral_ProcessOSALMsg
+ * @fn      Ketamine_ProcessOSALMsg
  *
  * @brief   Process an incoming task message.
  *
@@ -552,13 +552,13 @@ uint16 SimpleBLEPeripheral_ProcessEvent( uint8 task_id, uint16 events )
  *
  * @return  none
  */
-static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
+static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
   switch ( pMsg->event )
   {
   #if defined( CC2540_MINIDK )
     case KEY_CHANGE:
-      simpleBLEPeripheral_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
+      Ketamine_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
       break;
   #endif // #if defined( CC2540_MINIDK )
 
@@ -570,7 +570,7 @@ static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 
 #if defined( CC2540_MINIDK )
 /*********************************************************************
- * @fn      simpleBLEPeripheral_HandleKeys
+ * @fn      Ketamine_HandleKeys
  *
  * @brief   Handles all key events for this device.
  *
@@ -581,7 +581,7 @@ static void simpleBLEPeripheral_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  *
  * @return  none
  */
-static void simpleBLEPeripheral_HandleKeys( uint8 shift, uint8 keys )
+static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 {
   uint8 SK_Keys = 0;
 
@@ -697,9 +697,9 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
           // Boot pic32 & UART
-          OpenPic32();
+          OpenUART();
           // Set timer for first periodic event
-          // osal_start_timerEx( simpleBLEPeripheral_TaskID, SBP_PERIODIC_EVT, 4000 );
+          // osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, 4000 );
           
 #ifdef PLUS_BROADCASTER
         // Only turn advertising on for this state when we first connect
@@ -725,7 +725,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
     case GAPROLE_WAITING:
       {
         // Close Pic32 & UART
-        ClosePic32();
+        CloseUART();
         
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Disconnected",  HAL_LCD_LINE_3 );
@@ -736,7 +736,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
     case GAPROLE_WAITING_AFTER_TIMEOUT:
       {
         // Close Pic32 & UART
-        ClosePic32();
+        CloseUART();
         
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Timed Out",  HAL_LCD_LINE_3 );
@@ -752,7 +752,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
     case GAPROLE_ERROR:
       {
         // Close Pic32 & UART
-        ClosePic32();
+        CloseUART();
         
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Error",  HAL_LCD_LINE_3 );
@@ -784,7 +784,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
  * @fn      performPeriodicTask
  *
  * @brief   Perform a periodic application task. This function gets
- *          called every five seconds as a result of the SBP_PERIODIC_EVT
+ *          called every five seconds as a result of the KTM_PERIODIC_EVT
  *          OSAL event. In this example, the value of the third
  *          characteristic in the SimpleGATTProfile service is retrieved
  *          from the profile, and then copied into the value of the
@@ -806,7 +806,7 @@ static void performPeriodicTask( void )
 //  {
 //    noti.value[i] = message_counter;
 //  }
-  noti.len = 8;
+  noti.len = 16;
   /*
   uint8 bytes[3] = {0, 0, '\n'};
   HalTmpSelect();
@@ -818,8 +818,8 @@ static void performPeriodicTask( void )
   uint8 success_len = HalUARTWrite(NPI_UART_PORT, (uint8*)bytes, 3);
   noti.value[2] = success_len;
   */
-  HalColorInit();
-  struct RGBC rgbc = ReadRGB();
+  HalColorInit(COLOR_SENSOR_ADDR);
+  struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
   // int x = rgbc.clear;
   // for (uint8 i = 0; i < 2; ++i) {
   // Convert to unsigned char* because a char is 1 byte in size.
@@ -835,13 +835,25 @@ static void performPeriodicTask( void )
   noti.value[5] = *((uint8*)&(rgbc.blue)+1);
   noti.value[6] = *((uint8*)&(rgbc.clear));
   noti.value[7] = *((uint8*)&(rgbc.clear)+1);
+
+  HalColorInit(COLOR_SENSOR_ADDR2);
+  struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+
+  noti.value[8] = *((uint8*)&(rgbc2.red));
+  noti.value[9] = *((uint8*)&(rgbc2.red)+1);
+  noti.value[10] = *((uint8*)&(rgbc2.green));
+  noti.value[11] = *((uint8*)&(rgbc2.green)+1);
+  noti.value[12] = *((uint8*)&(rgbc2.blue));
+  noti.value[13] = *((uint8*)&(rgbc2.blue)+1);
+  noti.value[14] = *((uint8*)&(rgbc2.clear));
+  noti.value[15] = *((uint8*)&(rgbc2.clear)+1);
   
   
   
   if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
   {
     message_counter++;
-    HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
+    //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
   }  
 }
 
@@ -911,39 +923,43 @@ char *bdAddr2Str( uint8 *pAddr )
     *pStr++ = hex[*--pAddr >> 4];
     *pStr++ = hex[*pAddr & 0x0F];
   }
-
   *pStr = 0;
-
   return str;
 }
 #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
 /*********************************************************************
- * @fn      OpenPic32
+ * @fn      OpenUART
  *
  * @brief   Open Pic32 when connected.
  *
  * @return  none
  */
-void OpenPic32(void)
+void OpenUART(void)
 {
-  P0_6 = 1;             // Turn on pic32 regulator
-  HalUARTInit();        // Init UART on DMA1
-  NPI_InitTransport(cSerialPacketParser);
+  //P0_6 = 1;             // Turn on pic32 regulator
+  P0_5 = 1;               // Turn off regulator of color sensor
+  P0_3 = 1;
+  P0_4 = 1;
+  // HalUARTInit();        // Init UART on DMA1
+  // NPI_InitTransport(cSerialPacketParser);
 }
 
 /*********************************************************************
- * @fn      ClosePic32
+ * @fn      CloseUART
  *
  * @brief   Close Pic32 when disconnected.
  *
  * @return  none
  */
-void ClosePic32(void)
+void CloseUART(void)
 {
-  P0_6 = 0;             // Turn off pic32 regulator
-  P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
-  P1DIR &= ~0x30;
+  //P0_6 = 0;             // Turn off pic32 regulator
+  P0_5 = 0;               // Turn off regulator of color sensor
+  P0_3 = 0;
+  P0_4 = 0;
+  // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
+  // P1DIR &= ~0x30;
 }
 
 /*********************************************************************

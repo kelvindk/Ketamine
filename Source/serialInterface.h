@@ -19,12 +19,12 @@ typedef enum {
   SERIAL_STATE_COMPLETE //received complete serial message
 } serial_state_t;
 
-void cSerialPacketParser( uint8 port, uint8 events );
+void cSerialPacketParser(uint8 port, uint8 events);
 void parseCmd(void);
 void sendSerialEvt(void);
 
 
-/*******************************************************************************
+/**********************************************************************
  * MACROS
  */
 
@@ -37,24 +37,19 @@ extern uint8 serialBuffer[RX_BUFF_SIZE];
  * FUNCTIONS
  */
 
-/*
+/**********************************************************************
  * Task Initialization for the BLE Application
  */
 extern void SerialInterface_Init( uint8 task_id );
-
 extern void HalTmpSelect(void);
 
 /*
  * Task Event Processor for the BLE Application
  */
+
 extern uint16 SerialInterface_ProcessEvent( uint8 task_id, uint16 events );
-
 extern uint8 sendNotification(uint8* bytes_sent, uint8 len);
-
 extern uint8 sendAckMessage(uint8 bytes_sent);
-
 extern uint8 sendDataToHost(uint8* data, uint8 len);  
-  
 extern uint16 circular_add(uint16 x, uint16 y);
-
 extern uint16 circular_diff(uint16 offset, uint16 tail);

@@ -1,7 +1,8 @@
 #include <hal_i2c.h>
 #include <hal_sensor.h>
 
-#define COLOR_SENSOR_ADDR  0x39//the I2C address for the color sensor 
+#define COLOR_SENSOR_ADDR  0x39 //the I2C address for the color sensor
+#define COLOR_SENSOR_ADDR2 0x49
 
 #define REG_CTL 0x80
 #define REG_TIMING 0x81
@@ -69,15 +70,15 @@ extern struct RGBC{
 	int clear;
 }RGBC;
 
-extern void HalColorInit(void);
-extern struct RGBC ReadRGB(void);
-extern void calculateCoordinate(void);
+extern void HalColorInit(uint8 addr);
+extern struct RGBC ReadRGB(uint8 addr);
+extern void calculateCoordinate(uint8 addr);
 
 // Helper functions
 
-void setTimingReg(uint8 x);
-void setInterruptSourceReg(uint8 x);
-void setInterruptControlReg(uint8 x);
-void setGain(uint8 x);
-void setEnableADC(void);
-void clearInterrupt(void);
+void setTimingReg(uint8 addr, uint8 x);
+void setInterruptSourceReg(uint8 addr, uint8 x);
+void setInterruptControlReg(uint8 addr, uint8 x);
+void setGain(uint8 addr, uint8 x);
+void setEnableADC(uint8 addr);
+void clearInterrupt(uint8 addr);

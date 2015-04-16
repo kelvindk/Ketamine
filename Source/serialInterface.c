@@ -1,6 +1,6 @@
 #include "hal_uart.h"
 #include "serialInterface.h"
-#include "simpleBLEPeripheral.h"
+#include "Ketamine.h"
 #include "bcomdef.h"
 #include "hal_led.h"
 #include "hal_i2c.h"
@@ -45,10 +45,15 @@ void SerialInterface_Init( uint8 task_id )
   //NPI_InitTransport(cSerialPacketParser);
   
   // Set regulator to low to save power; Turn off pic32 regulator and debug LED on P0_3
-  P0SEL &= ~0x48;
-  P0DIR |= 0x48;
-  P0_6 = 0;
+  // P0SEL &= ~0x48;
+  // P0DIR |= 0x48;
+  // P0_6 = 0;
+  // P0_3 = 0;
+  P0SEL &= ~0x38;
+  P0DIR |= 0x38;
+  P0_5 = 0;
   P0_3 = 0;
+  P0_4 = 0;
 }
 
 uint16 SerialInterface_ProcessEvent( uint8 task_id, uint16 events )
@@ -154,7 +159,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
       }
     }
     if(pktRxByteOffset == 0) {
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
+      //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
       // got sufficient bytes in a packet
 //      serialPacketHandler();
       (void)sendNotification((uint8 *)&pktBuf, pktLength+1);
