@@ -92,7 +92,7 @@
 
 // How often to perform periodic event
 //#define KTM_PERIODIC_EVT_PERIOD                   100
-#define KTM_PERIODIC_EVT_PERIOD                   4000
+#define KTM_PERIODIC_EVT_PERIOD                   2000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -495,7 +495,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
   if ( events & KTM_PERIODIC_EVT )
   {
-    P1_1 = ~P1_1;
     if( gapProfileState != GAPROLE_CONNECTED )
     {
       uint8 current_adv_enabled_status;
@@ -698,6 +697,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           
           // Boot pic32 & UART
           OpenUART();
+//          HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
           // Set timer for first periodic event
           // osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, 4000 );
           
@@ -799,34 +799,20 @@ static void performPeriodicTask( void )
   attHandleValueNoti_t noti;      
   //dummy handle
   noti.handle = 0x2E;  
-//  noti.len = 20;
-//  uint8 i;
-//  
-//  for (i= 0; i < 20; i++)
-//  {
-//    noti.value[i] = message_counter;
-//  }
   noti.len = 16;
-  /*
-  uint8 bytes[3] = {0, 0, '\n'};
-  HalTmpSelect();
-  HalSensorReadReg(REG_READ_TMP102, bytes, 2);
-  int16 TemperatureSum = ((bytes[0] << 8) | bytes[1]) >> 4; 
-  noti.value[0] = bytes[0];
-  noti.value[1] = bytes[1];
-  noti.value[2] = '\n'; 
-  uint8 success_len = HalUARTWrite(NPI_UART_PORT, (uint8*)bytes, 3);
-  noti.value[2] = success_len;
-  */
+  uint8 i;
+  
+  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_TOGGLE );
+  
   HalColorInit(COLOR_SENSOR_ADDR);
   struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-  // int x = rgbc.clear;
-  // for (uint8 i = 0; i < 2; ++i) {
-  // Convert to unsigned char* because a char is 1 byte in size.
-  // That is guaranteed by the standard.
-  // Note that is it NOT required to be 8 bits in size.
-  //  noti.value[i] = *((uint8*)&x + i);
-  //}
+   int x = rgbc.clear;
+   for (uint8 i = 0; i < 2; ++i) {
+//   Convert to unsigned char* because a char is 1 byte in size.
+//   That is guaranteed by the standard.
+//   Note that is it NOT required to be 8 bits in size.
+    noti.value[i] = *((uint8*)&x + i);
+  }
   noti.value[0] = *((uint8*)&(rgbc.red));
   noti.value[1] = *((uint8*)&(rgbc.red)+1);
   noti.value[2] = *((uint8*)&(rgbc.green));
@@ -848,13 +834,14 @@ static void performPeriodicTask( void )
   noti.value[14] = *((uint8*)&(rgbc2.clear));
   noti.value[15] = *((uint8*)&(rgbc2.clear)+1);
   
+//  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
   
   
   if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
   {
     message_counter++;
-    //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-  }  
+    
+  }
 }
 
 /*********************************************************************
@@ -939,8 +926,6 @@ void OpenUART(void)
 {
   //P0_6 = 1;             // Turn on pic32 regulator
   P0_5 = 1;               // Turn off regulator of color sensor
-  P0_3 = 1;
-  P0_4 = 1;
   // HalUARTInit();        // Init UART on DMA1
   // NPI_InitTransport(cSerialPacketParser);
 }
@@ -957,7 +942,7 @@ void CloseUART(void)
   //P0_6 = 0;             // Turn off pic32 regulator
   P0_5 = 0;               // Turn off regulator of color sensor
   P0_3 = 0;
-  P0_4 = 0;
+  P0_4 = 1;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }

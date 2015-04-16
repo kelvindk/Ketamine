@@ -54,6 +54,11 @@ void SerialInterface_Init( uint8 task_id )
   P0_5 = 0;
   P0_3 = 0;
   P0_4 = 0;
+  //P0SEL &= ~0x20;
+  //P0DIR |= 0x20;
+  //P0_5 = 0;
+  //HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
+  //HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
 }
 
 uint16 SerialInterface_ProcessEvent( uint8 task_id, uint16 events )
