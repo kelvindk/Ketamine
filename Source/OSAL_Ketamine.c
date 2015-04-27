@@ -99,7 +99,7 @@ const pTaskEventHandlerFn tasksArr[] =
   GAPRole_ProcessEvent,                                             // task 8
   GAPBondMgr_ProcessEvent,                                          // task 9
   GATTServApp_ProcessEvent,                                         // task 10
-  SerialInterface_ProcessEvent,                                     // task 11
+  //SerialInterface_ProcessEvent,                                     // task 11
   Ketamine_ProcessEvent                                  // task 12
 };
 
@@ -159,7 +159,7 @@ void osalInitTasks( void )
 
   GATTServApp_Init( taskID++ );
   
-  SerialInterface_Init(taskID++ );
+  //SerialInterface_Init(taskID++ );
 
   /* Application */
   Ketamine_Init( taskID );

@@ -22,7 +22,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED ?AS IS? WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -376,35 +376,12 @@ void Ketamine_Init( uint8 task_id )
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR5, SIMPLEPROFILE_CHAR5_LEN, charValue5 );
   }
 
-
-#if defined( CC2540_MINIDK )
-
-  SK_AddService( GATT_ALL_SERVICES ); // Simple Keys Profile
-
-  // Register for all key events - This app will handle all key events
-  RegisterForKeys( Ketamine_TaskID );
-
-  // makes sure LEDs are off
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
+  P0SEL = 0;
+  P0DIR = 0xFF;
+  P0 = 0;
+  HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
-  // For keyfob board set GPIO pins into a power-optimized state
-  // Note that there is still some leakage current from the buzzer,
-  // accelerometer, LEDs, and buttons on the PCB.
-
-  P0SEL = 0; // Configure Port 0 as GPIO
-  P1SEL = 0; // Configure Port 1 as GPIO
-  P2SEL = 0; // Configure Port 2 as GPIO
-
-  P0DIR = 0xFC; // Port 0 pins P0.0 and P0.1 as input (buttons),
-                // all others (P0.2-P0.7) as output
-  P1DIR = 0xFF; // All port 1 pins (P1.0-P1.7) as output
-  P2DIR = 0x1F; // All port 1 pins (P2.0-P2.4) as output
-
-  P0 = 0x03; // All pins on port 0 to low except for P0.0 and P0.1 (buttons)
-  P1 = 0;   // All pins on port 1 to low
-  P2 = 0;   // All pins on port 2 to low
-
-#endif // #if defined( CC2540_MINIDK )
 
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -793,54 +770,60 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
  * @param   none
  *
  * @return  none
- */
+ */     
+uint8 counter = 0;
+attHandleValueNoti_t noti; 
+
 static void performPeriodicTask( void )
 { 
-  attHandleValueNoti_t noti;      
-  //dummy handle
-  noti.handle = 0x2E;  
-  noti.len = 16;
-  uint8 i;
+//  static uint16 counter = 0;
+//  static attHandleValueNoti_t noti;  
+//  noti.handle = 0x2E;  
+//  noti.len = 16;
   
-  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_TOGGLE );
   
-  HalColorInit(COLOR_SENSOR_ADDR);
-  struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-   int x = rgbc.clear;
-   for (uint8 i = 0; i < 2; ++i) {
-//   Convert to unsigned char* because a char is 1 byte in size.
-//   That is guaranteed by the standard.
-//   Note that is it NOT required to be 8 bits in size.
-    noti.value[i] = *((uint8*)&x + i);
+  
+  if( counter == 1){
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1250);
+    counter = 0;
+    noti.handle = 0x2E;  
+    noti.len = 16;
+    HalColorInit(COLOR_SENSOR_ADDR); //0x39
+    struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
+    noti.value[0] = *((uint8*)&(rgbc.red));
+    noti.value[1] = *((uint8*)&(rgbc.red)+1);
+    noti.value[2] = *((uint8*)&(rgbc.green));
+    noti.value[3] = *((uint8*)&(rgbc.green)+1);
+    noti.value[4] = *((uint8*)&(rgbc.blue));
+    noti.value[5] = *((uint8*)&(rgbc.blue)+1);
+    noti.value[6] = *((uint8*)&(rgbc.clear));
+    noti.value[7] = *((uint8*)&(rgbc.clear)+1);
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
   }
-  noti.value[0] = *((uint8*)&(rgbc.red));
-  noti.value[1] = *((uint8*)&(rgbc.red)+1);
-  noti.value[2] = *((uint8*)&(rgbc.green));
-  noti.value[3] = *((uint8*)&(rgbc.green)+1);
-  noti.value[4] = *((uint8*)&(rgbc.blue));
-  noti.value[5] = *((uint8*)&(rgbc.blue)+1);
-  noti.value[6] = *((uint8*)&(rgbc.clear));
-  noti.value[7] = *((uint8*)&(rgbc.clear)+1);
-
-  HalColorInit(COLOR_SENSOR_ADDR2);
-  struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-
-  noti.value[8] = *((uint8*)&(rgbc2.red));
-  noti.value[9] = *((uint8*)&(rgbc2.red)+1);
-  noti.value[10] = *((uint8*)&(rgbc2.green));
-  noti.value[11] = *((uint8*)&(rgbc2.green)+1);
-  noti.value[12] = *((uint8*)&(rgbc2.blue));
-  noti.value[13] = *((uint8*)&(rgbc2.blue)+1);
-  noti.value[14] = *((uint8*)&(rgbc2.clear));
-  noti.value[15] = *((uint8*)&(rgbc2.clear)+1);
+  else{
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1250);
+    counter = 1;
+    HalColorInit(COLOR_SENSOR_ADDR2);
+    struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
   
+    noti.value[8] = *((uint8*)&(rgbc2.red));
+    noti.value[9] = *((uint8*)&(rgbc2.red)+1);
+    noti.value[10] = *((uint8*)&(rgbc2.green));
+    noti.value[11] = *((uint8*)&(rgbc2.green)+1);
+    noti.value[12] = *((uint8*)&(rgbc2.blue));
+    noti.value[13] = *((uint8*)&(rgbc2.blue)+1);
+    noti.value[14] = *((uint8*)&(rgbc2.clear));
+    noti.value[15] = *((uint8*)&(rgbc2.clear)+1);
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
 //  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
   
   
-  if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
-  {
-    message_counter++;
-    
+    if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+    {
+      message_counter++;
+    }
   }
 }
 
@@ -926,6 +909,9 @@ void OpenUART(void)
 {
   //P0_6 = 1;             // Turn on pic32 regulator
   P0_5 = 1;               // Turn off regulator of color sensor
+  HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+//  P0_3 = 1;
+//  P0_4 = 1;
   // HalUARTInit();        // Init UART on DMA1
   // NPI_InitTransport(cSerialPacketParser);
 }
@@ -942,7 +928,7 @@ void CloseUART(void)
   //P0_6 = 0;             // Turn off pic32 regulator
   P0_5 = 0;               // Turn off regulator of color sensor
   P0_3 = 0;
-  P0_4 = 1;
+  P0_4 = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }
