@@ -240,6 +240,7 @@ static uint8 somedata2[] =
   0x61,   // 'a'
 };
 
+static uint8 globalState = 1;
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -505,7 +506,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = TRUE;
         if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD );
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD/2 );
         }
       }
       else
@@ -516,7 +517,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
           osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD  ); // adjust duty cycle 8000
         }
       }
-
       //change the GAP advertisement status to opposite of current status
       GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
     }
@@ -530,9 +530,12 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     }
 
     // Perform periodic application task
-//    performPeriodicTask();
+    //performPeriodicTask();
 
     return (events ^ KTM_PERIODIC_EVT);
+  }
+  if ( events & KTM_BATTERRY_NOTI_EVT ){
+     return (events ^ KTM_BATTERRY_NOTI_EVT);
   }
 
   // Discard unknown events
@@ -791,7 +794,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
  *
  * @return  none
  */     
-
+uint8 eepcnt  = 0;
 uint8 counter = 0;
 attHandleValueNoti_t noti; 
 
@@ -803,77 +806,89 @@ static void performPeriodicTask( void )
 //  noti.handle = 0x2E;  
 //  noti.len = 16;
   
-  if( counter == 1){
-    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata1, sizeof(somedata1));
-    HalI2CDisable();
-    ST_HAL_DELAY(1250);
-    counter = 0;
-  }else{
-    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata2, sizeof(somedata2));
-    HalI2CDisable();
-    ST_HAL_DELAY(1250);
-    counter = 1;
-  }
-
-  // Test eeprom read
-  noti.handle = 0x2E;  
-  noti.len = 6;
-  uint8 buf[6];
-  i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-  noti.value[0] = buf[0]; 
-  noti.value[1] = buf[1]; 
-  noti.value[2] = buf[2]; 
-  noti.value[3] = buf[3]; 
-  noti.value[4] = buf[4]; 
-  noti.value[5] = '!'; 
-  GATT_Notification(0, &noti, FALSE);
-  
-  /*
-  if( counter == 1){
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1250);
-    counter = 0;
-
+  if(globalState == 1){
+    /*Test EEPROM*/
+    if( eepcnt == 1){
+      i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata1, sizeof(somedata1));
+      HalI2CDisable();
+      ST_HAL_DELAY(1250);
+      eepcnt = 0;
+    }else{
+      i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata2, sizeof(somedata2));
+      HalI2CDisable();
+      ST_HAL_DELAY(1250);
+      eepcnt = 1;
+    } 
+    // EEPROM read
     noti.handle = 0x2E;  
-    noti.len = 16;
-    HalColorInit(COLOR_SENSOR_ADDR); //0x39
-    struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-    noti.value[0] = *((uint8*)&(rgbc.red));
-    noti.value[1] = *((uint8*)&(rgbc.red)+1);
-    noti.value[2] = *((uint8*)&(rgbc.green));
-    noti.value[3] = *((uint8*)&(rgbc.green)+1);
-    noti.value[4] = *((uint8*)&(rgbc.blue));
-    noti.value[5] = *((uint8*)&(rgbc.blue)+1);
-    noti.value[6] = *((uint8*)&(rgbc.clear));
-    noti.value[7] = *((uint8*)&(rgbc.clear)+1);
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+    noti.len = 6;
+    uint8 buf[6];
+    i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+    noti.value[0] = buf[0]; 
+    noti.value[1] = buf[1]; 
+    noti.value[2] = buf[2]; 
+    noti.value[3] = buf[3]; 
+    noti.value[4] = buf[4]; 
+    noti.value[5] = '!'; 
+    GATT_Notification(0, &noti, FALSE);
   }
-  else{
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1250);
-    counter = 1;
-    HalColorInit(COLOR_SENSOR_ADDR2);
-    struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+  
+  
+  /*Test ADC
+  noti.handle = 0x2E;
+  noti.len = 2;
+  uint8 buf[2];
+  uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
+  noti.value[0] = adcvalue & 0xFF;
+  noti.value[1] = (adcvalue >> 8) & 0xFF;
+  GATT_Notification(0, &noti, FALSE);
+  */
+  if(globalState == 2){
+    /*TEST COLOR SENSOR*/
+    if( counter == 1){
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      counter = 0;
 
-  
-    noti.value[8] = *((uint8*)&(rgbc2.red));
-    noti.value[9] = *((uint8*)&(rgbc2.red)+1);
-    noti.value[10] = *((uint8*)&(rgbc2.green));
-    noti.value[11] = *((uint8*)&(rgbc2.green)+1);
-    noti.value[12] = *((uint8*)&(rgbc2.blue));
-    noti.value[13] = *((uint8*)&(rgbc2.blue)+1);
-    noti.value[14] = *((uint8*)&(rgbc2.clear));
-    noti.value[15] = *((uint8*)&(rgbc2.clear)+1);
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+      noti.handle = 0x2E;  
+      noti.len = 16;
+      HalColorInit(COLOR_SENSOR_ADDR); //0x39
+      struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
+
+      noti.value[0] = rgbc.red & 0xFF;
+      noti.value[1] = (rgbc.red >> 8) & 0xFF;
+      noti.value[2] = rgbc.green & 0xFF;
+      noti.value[3] = (rgbc.green >> 8) & 0xFF;
+      noti.value[4] = rgbc.blue & 0xFF;
+      noti.value[5] = (rgbc.blue >> 8) & 0xFF;
+      noti.value[6] = rgbc.clear & 0xFF;
+      noti.value[7] = (rgbc.clear >> 8) & 0xFF;
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+    }
+    else{
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      counter = 1;
+      HalColorInit(COLOR_SENSOR_ADDR2);
+      struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+
+      noti.value[8] = rgbc2.red & 0xFF;
+      noti.value[9] = (rgbc2.red >> 8) & 0xFF;
+      noti.value[10] = rgbc2.green & 0xFF;
+      noti.value[11] = (rgbc2.green >> 8) & 0xFF;
+      noti.value[12] = rgbc2.blue & 0xFF;
+      noti.value[13] = (rgbc2.blue >> 8) & 0xFF;
+      noti.value[14] = rgbc2.clear & 0xFF;
+      noti.value[15] = (rgbc2.clear >> 8) & 0xFF;
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
 //  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
-  
-  
-    if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
-    {
-      message_counter++;
+   
+      if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+      {
+        message_counter++;
+      }
     }
   }
-  */
 }
 
 /*********************************************************************
@@ -893,7 +908,7 @@ static void simpleProfileChangeCB( uint8 paramID )
   {
     case SIMPLEPROFILE_CHAR1:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
-      
+      globalState = newValue;
       #if (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLcdWriteStringValue( "Char 1:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
       #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -956,11 +971,11 @@ char *bdAddr2Str( uint8 *pAddr )
  */
 void OpenUART(void)
 {
-  //P0_6 = 1;             // Turn on pic32 regulator
-  P0_5 = 1;               // Turn off regulator of color sensor
-  //i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata, sizeof(somedata));
-  //HalI2CDisable();
+  P0_5 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+  HalAdcInit ();
+  HalAdcSetReference (HAL_ADC_REF_AVDD);
+  
 //  P0_3 = 1;
 //  P0_4 = 1;
   // HalUARTInit();        // Init UART on DMA1
@@ -976,10 +991,10 @@ void OpenUART(void)
  */
 void CloseUART(void)
 {
-  //P0_6 = 0;             // Turn off pic32 regulator
   P0_5 = 0;               // Turn off regulator of color sensor
-  P0_3 = 0;
-  P0_4 = 0;
+  HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+  //P0_3 = 0;
+  //P0_4 = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }
