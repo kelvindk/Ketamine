@@ -24,10 +24,10 @@ uint8 i2c_eeprom_read_byte(uint8 deviceaddress, uint8 eeaddress){
 
     return buf;
 }
-void i2c_eeprom_read_buffer(uint8 deviceaddress, uint8 eeaddresspage, uint8* buffer, uint8 length){
+bool i2c_eeprom_read_buffer(uint8 deviceaddress, uint8 eeaddresspage, uint8* buffer, uint8 length){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
     HalSensorWriteReg(eeaddresspage, NULL, 0);
 
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
-    HalSensorReadReg(eeaddresspage, buffer, length);
+    return HalSensorReadReg(eeaddresspage, buffer, length);
 }
