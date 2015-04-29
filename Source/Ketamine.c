@@ -55,6 +55,7 @@
 #include "hal_uart.h"
 #include "npi.h"
 #include "TCS3414CS.h"
+#include "eeprom.h"
 
 #include "gatt.h"
 
@@ -220,6 +221,25 @@ static uint8 advertData[] =
 
 // GAP GATT Attributes
 static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
+
+static uint8 somedata1[] =
+{
+  0x61,   // 'a'
+  0x70,   // 'p'
+  0x70,   // 'p'
+  0x6c,   // 'l'
+  0x65,   // 'e'
+};
+
+static uint8 somedata2[] =
+{
+  0x65,   // 'e'
+  0x6c,   // 'l'
+  0x70,   // 'p'
+  0x70,   // 'p'
+  0x61,   // 'a'
+};
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -775,6 +795,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 uint8 counter = 0;
 attHandleValueNoti_t noti; 
 
+
 static void performPeriodicTask( void )
 { 
 //  static uint16 counter = 0;
@@ -782,9 +803,32 @@ static void performPeriodicTask( void )
 //  noti.handle = 0x2E;  
 //  noti.len = 16;
   
-  
-  
+  if( counter == 1){
+    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata1, sizeof(somedata1));
+    HalI2CDisable();
+    ST_HAL_DELAY(1250);
+    counter = 0;
+  }else{
+    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata2, sizeof(somedata2));
+    HalI2CDisable();
+    ST_HAL_DELAY(1250);
+    counter = 1;
+  }
 
+  // Test eeprom read
+  noti.handle = 0x2E;  
+  noti.len = 6;
+  uint8 buf[6];
+  i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+  noti.value[0] = buf[0]; 
+  noti.value[1] = buf[1]; 
+  noti.value[2] = buf[2]; 
+  noti.value[3] = buf[3]; 
+  noti.value[4] = buf[4]; 
+  noti.value[5] = '!'; 
+  GATT_Notification(0, &noti, FALSE);
+  
+  /*
   if( counter == 1){
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1250);
@@ -829,6 +873,7 @@ static void performPeriodicTask( void )
       message_counter++;
     }
   }
+  */
 }
 
 /*********************************************************************
@@ -913,7 +958,8 @@ void OpenUART(void)
 {
   //P0_6 = 1;             // Turn on pic32 regulator
   P0_5 = 1;               // Turn off regulator of color sensor
-
+  //i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata, sizeof(somedata));
+  //HalI2CDisable();
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
 //  P0_3 = 1;
 //  P0_4 = 1;

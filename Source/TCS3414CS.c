@@ -1,7 +1,7 @@
 #include <TCS3414CS.h>
 
 void HalColorInit(uint8 addr){
-	setTimingReg(addr, INTEG_MODE_FREE);//Set trigger mode.Including free mode,manually mode,single synchronizition mode or so.
+    setTimingReg(addr, INTEG_MODE_FREE);//Set trigger mode.Including free mode,manually mode,single synchronizition mode or so.
     setInterruptSourceReg(addr, INT_SOURCE_CLEAR); //Set interrupt source
     setInterruptControlReg(addr, INTR_LEVEL|INTR_PERSIST_EVERY);//Set interrupt mode
     setGain(addr, GAIN_1|PRESCALER_4);//Set gain value and prescaler value
