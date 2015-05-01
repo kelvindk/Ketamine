@@ -800,8 +800,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 unsigned int counter =  0;
 uint8 eepcnt = 0;
 uint8 clrcnt = 0;
-uint16 firstThres = 75;
-uint16 secondThres = 65;
+uint16 firstThres = 20;
+uint16 secondThres = 15;
 bool isConnected = FALSE;
 bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
@@ -812,17 +812,20 @@ static void performPeriodicTask( void )
 //  static attHandleValueNoti_t noti;  
 //  noti.handle = 0x2E;  
 //  noti.len = 16;
+  counter++;
   globalCount++;
   if(globalCount > 300){
     // Terminate
+    GAPRole_TerminateConnection();
+    globalState = 1;
   }
   
   uint8 buf[20];
-  if(isConnected == FALSE || counter % 10 == 0){
+  if(isConnected == FALSE || counter % 5 == 0){
     // EEPROM read
     bool result = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     noti.handle = 0x2E;
-    if(result == TRUE && isConnected == FALSE){
+    if(result == TRUE ){
       noti.len = 6;
       noti.value[0] = 0xFB;
       noti.value[1] = buf[0]; 
@@ -832,6 +835,7 @@ static void performPeriodicTask( void )
       noti.value[5] = buf[4]; 
       GATT_Notification(0, &noti, FALSE);
       isConnected = TRUE;
+      return;
     }
     else if(result == FALSE){
       noti.len = 1;
@@ -867,23 +871,32 @@ static void performPeriodicTask( void )
     //noti.value[1] = (adcvalue >> 8) & 0xFF;
     if(isSecondSaliva == FALSE){
       if(isfirstSaliva == FALSE){
+        noti.len = 3;
+        noti.value[0] = 0xFC;
+        noti.value[1] = adcvalue & 0xFF;
+        noti.value[2] = (adcvalue >> 8) & 0xFF;
+        GATT_Notification(0, &noti, FALSE);
         if(adcvalue > firstThres){
           isfirstSaliva = TRUE;
         }
-        noti.len = 1;
-        noti.value[0] = 0xFC;
-        GATT_Notification(0, &noti, FALSE);
+        return;
       }else{
+        noti.len = 3;
+        noti.value[0] = 0xFD;
+        noti.value[1] = adcvalue & 0xFF;
+        noti.value[2] = (adcvalue >> 8) & 0xFF;
+        GATT_Notification(0, &noti, FALSE);
         if(adcvalue < secondThres)
           isSecondSaliva = TRUE;
+        return;
       }
-      noti.len = 1;
-      noti.value[0] = 0xFD;
-      GATT_Notification(0, &noti, FALSE);
     }else{
-      noti.len = 1;
+      noti.len = 3;
       noti.value[0] = 0xFE;
+      noti.value[1] = adcvalue & 0xFF;
+      noti.value[2] = (adcvalue >> 8) & 0xFF;
       GATT_Notification(0, &noti, FALSE);
+      return;
     }
   }
   if(globalState == 3){
@@ -934,8 +947,9 @@ static void performPeriodicTask( void )
   }
   if(globalState == 4){
     //Terminate
+    GAPRole_TerminateConnection();
+    globalState = 1;
   }
-  counter++;
 }
 
 /*********************************************************************
