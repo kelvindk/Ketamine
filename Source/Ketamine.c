@@ -404,6 +404,11 @@ void Ketamine_Init( uint8 task_id )
   P0SEL = 0;
   P0DIR = 0xFF;
   P0 = 0;
+  
+  //P0SEL &= ~0x38;
+  //P0DIR = 0x38;
+  //P0 = 0;
+  
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
 
@@ -883,6 +888,8 @@ static void performPeriodicTask( void )
   
   if(globalState == 2){
     /*Test ADC*/
+    HalAdcInit ();
+    HalAdcSetReference (HAL_ADC_REF_AVDD);
     noti.handle = 0x2E;
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
     //noti.value[0] = adcvalue & 0xFF;
@@ -919,8 +926,11 @@ static void performPeriodicTask( void )
   }
   if(globalState == 3){
     /*TEST COLOR SENSOR*/
-    //P0_5 = 1;
-    //ST_HAL_DELAY(1250);
+    P0SEL = 0;
+    P0DIR = 0xFF;
+    P0 = 0;
+    P0_5 = 1;
+    ST_HAL_DELAY(1200);
     if( clrcnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
@@ -964,8 +974,7 @@ static void performPeriodicTask( void )
         message_counter++;
       }
     }
-    //P0_5 = 0;
-    //ST_HAL_DELAY(125);
+    P0_5 = 0;
   }
   if(globalState == 4){
     //Terminate
@@ -1055,10 +1064,10 @@ char *bdAddr2Str( uint8 *pAddr )
  */
 void OpenUART(void)
 {
-  P0_5 = 1;               // Turn on regulator of color sensor
+  P0_5 = 0;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
-  HalAdcInit ();
-  HalAdcSetReference (HAL_ADC_REF_AVDD);
+  //HalAdcInit ();
+  //HalAdcSetReference (HAL_ADC_REF_AVDD);
  
   // HalUARTInit();        // Init UART on DMA1
   // NPI_InitTransport(cSerialPacketParser);
