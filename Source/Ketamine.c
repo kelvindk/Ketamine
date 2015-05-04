@@ -209,6 +209,7 @@ static uint8 advertData[] =
   0x02,   // length of this data
   GAP_ADTYPE_FLAGS,
   DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
+  //DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_LIMITED,
 
   // service UUID, to notify central devices what services are included
   // in this peripheral
@@ -242,6 +243,7 @@ static uint8 somedata2[] =
 
 static uint8 globalState = 1;
 static uint16 globalCount = 0; 
+static uint8 advCount = 0; 
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -496,6 +498,10 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      advCount++;
+      if(advCount > 20){
+        return (events ^ KTM_PERIODIC_EVT);
+      }
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -527,6 +533,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     else if ( KTM_PERIODIC_EVT_PERIOD )
     {
       performPeriodicTask();
+      advCount = 0;
       osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
     }
 
@@ -798,6 +805,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
 /*Variables for application control*/
 unsigned int counter =  0;
+uint8 buf[20];
 uint8 eepcnt = 0;
 uint8 clrcnt = 0;
 uint16 firstThres = 20;
@@ -820,20 +828,30 @@ static void performPeriodicTask( void )
     globalState = 1;
   }
   
-  uint8 buf[20];
-  if(isConnected == FALSE || counter % 5 == 0){
+  
+  if(isConnected == FALSE || counter % 5 == 1){
     // EEPROM read
     bool result = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     noti.handle = 0x2E;
     if(result == TRUE ){
-      noti.len = 6;
+      noti.len = 7;
       noti.value[0] = 0xFB;
       noti.value[1] = buf[0]; 
       noti.value[2] = buf[1]; 
       noti.value[3] = buf[2]; 
       noti.value[4] = buf[3]; 
       noti.value[5] = buf[4]; 
-      GATT_Notification(0, &noti, FALSE);
+      if(counter < 10){
+        while(counter < 10){
+          noti.value[6] = counter;
+          GATT_Notification(0, &noti, FALSE);
+          counter++;
+        }
+      }
+      else{
+          noti.value[6] = counter;
+          GATT_Notification(0, &noti, FALSE);
+      }
       isConnected = TRUE;
       return;
     }
@@ -901,6 +919,8 @@ static void performPeriodicTask( void )
   }
   if(globalState == 3){
     /*TEST COLOR SENSOR*/
+    //P0_5 = 1;
+    //ST_HAL_DELAY(1250);
     if( clrcnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
@@ -944,11 +964,14 @@ static void performPeriodicTask( void )
         message_counter++;
       }
     }
+    //P0_5 = 0;
+    //ST_HAL_DELAY(125);
   }
   if(globalState == 4){
     //Terminate
-    GAPRole_TerminateConnection();
     globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    GAPRole_TerminateConnection();
   }
 }
 
@@ -1036,7 +1059,7 @@ void OpenUART(void)
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
   HalAdcInit ();
   HalAdcSetReference (HAL_ADC_REF_AVDD);
-
+ 
   // HalUARTInit();        // Init UART on DMA1
   // NPI_InitTransport(cSerialPacketParser);
 }
@@ -1052,7 +1075,8 @@ void CloseUART(void)
 {
   P0_5 = 0;               // Turn off regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
-  
+  counter = 0;
+  advCount = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }
