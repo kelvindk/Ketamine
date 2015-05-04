@@ -926,11 +926,11 @@ static void performPeriodicTask( void )
   }
   if(globalState == 3){
     /*TEST COLOR SENSOR*/
-    P0SEL = 0;
-    P0DIR = 0xFF;
-    P0 = 0;
-    P0_5 = 1;
-    ST_HAL_DELAY(1200);
+    P0SEL &= ~0x38;
+    P0DIR |= 0x38;
+    P0 = 0x20;
+    //ST_HAL_DELAY(3000);
+    HalLedExitSleep();
     if( clrcnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
@@ -974,7 +974,7 @@ static void performPeriodicTask( void )
         message_counter++;
       }
     }
-    P0_5 = 0;
+    //P0 = 0;
   }
   if(globalState == 4){
     //Terminate
@@ -1064,7 +1064,7 @@ char *bdAddr2Str( uint8 *pAddr )
  */
 void OpenUART(void)
 {
-  P0_5 = 0;               // Turn on regulator of color sensor
+  P0_5 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
   //HalAdcInit ();
   //HalAdcSetReference (HAL_ADC_REF_AVDD);
