@@ -15,12 +15,15 @@ struct RGBC ReadRGB(uint8 addr){
     HalSensorWriteReg(REG_BLOCK_READ, NULL, 0);
     
     HalI2CInit(addr, i2cClock_267KHZ);
-    HalSensorReadReg(COLOR_SENSOR_ADDR, buf, 8);
+    HalSensorReadReg(addr, buf, 8);
+    //HalSensorReadReg(COLOR_SENSOR_ADDR, buf, 8);
 
     color.green = buf[1]*256 + buf[0];
     color.red = buf[3]*256 + buf[2];
     color.blue = buf[5]*256 + buf[4];
     color.clear = buf[7]*256 + buf[6];
+    
+    setDisableColor(addr);
     
     return color;
 }
@@ -31,36 +34,41 @@ void setTimingReg(uint8 addr, uint8 x){
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorWriteReg(REG_TIMING, &x, sizeof(x));
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
 }
 void setInterruptSourceReg(uint8 addr, uint8 x){
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorWriteReg(REG_INT_SOURCE, &x, sizeof(x));
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
 }
 void setInterruptControlReg(uint8 addr, uint8 x){
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorWriteReg(REG_INT, &x, sizeof(x));
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
 }
 void setGain(uint8 addr, uint8 x){
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorWriteReg(REG_GAIN, &x, sizeof(x));
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
 }
 void setEnableADC(uint8 addr){
     HalI2CInit(addr, i2cClock_267KHZ);
     uint8 instruction = CTL_DAT_INIITIATE;
     HalSensorWriteReg(REG_CTL, &instruction, 1);
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
+}
+void setDisableColor(uint8 addr){
+    HalI2CInit(addr, i2cClock_267KHZ);
+    uint8 instruction = 0;
+    HalSensorWriteReg(REG_CTL, &instruction, 1);
 }
 void clearInterrupt(uint8 addr){
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorWriteReg(CLR_INT, NULL, 0);
     // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    //ST_HAL_DELAY(180);
 }

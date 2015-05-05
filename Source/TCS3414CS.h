@@ -81,4 +81,5 @@ void setInterruptSourceReg(uint8 addr, uint8 x);
 void setInterruptControlReg(uint8 addr, uint8 x);
 void setGain(uint8 addr, uint8 x);
 void setEnableADC(uint8 addr);
+void setDisableColor(uint8 addr);
 void clearInterrupt(uint8 addr);

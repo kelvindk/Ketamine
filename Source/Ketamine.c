@@ -501,12 +501,13 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
   if ( events & KTM_PERIODIC_EVT )
   {
+    if(advCount > 20){
+      return (events ^ KTM_PERIODIC_EVT);
+    }
     if( gapProfileState != GAPROLE_CONNECTED )
     {
       advCount++;
-      if(advCount > 20){
-        return (events ^ KTM_PERIODIC_EVT);
-      }
+
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -541,9 +542,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       advCount = 0;
       osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
     }
-
-    // Perform periodic application task
-    //performPeriodicTask();
 
     return (events ^ KTM_PERIODIC_EVT);
   }
@@ -825,6 +823,10 @@ static void performPeriodicTask( void )
 //  static attHandleValueNoti_t noti;  
 //  noti.handle = 0x2E;  
 //  noti.len = 16;
+  int j = 0;
+  for(;j<20;j++){
+    buf[j] = 0;
+  }
   counter++;
   globalCount++;
   if(globalCount > 300){
@@ -839,7 +841,7 @@ static void performPeriodicTask( void )
     bool result = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     noti.handle = 0x2E;
     if(result == TRUE ){
-      noti.len = 7;
+      noti.len = 6;
       noti.value[0] = 0xFB;
       noti.value[1] = buf[0]; 
       noti.value[2] = buf[1]; 
@@ -848,13 +850,13 @@ static void performPeriodicTask( void )
       noti.value[5] = buf[4]; 
       if(counter < 10){
         while(counter < 10){
-          noti.value[6] = counter;
+          //noti.value[6] = counter;
           GATT_Notification(0, &noti, FALSE);
           counter++;
         }
       }
       else{
-          noti.value[6] = counter;
+          //noti.value[6] = counter;
           GATT_Notification(0, &noti, FALSE);
       }
       isConnected = TRUE;
@@ -929,16 +931,16 @@ static void performPeriodicTask( void )
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
     P0 = 0x20;
-    //ST_HAL_DELAY(3000);
-    HalLedExitSleep();
+    ST_HAL_DELAY(1200);
+    
     if( clrcnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
       clrcnt = 0;
-
+      
       noti.handle = 0x2E;  
       noti.len = 17;
-      HalColorInit(COLOR_SENSOR_ADDR); //0x39
+      //HalColorInit(COLOR_SENSOR_ADDR2); //0x39
       struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
       noti.value[0] = 0xFF;
       noti.value[1] = rgbc.red & 0xFF;
@@ -950,12 +952,13 @@ static void performPeriodicTask( void )
       noti.value[7] = rgbc.clear & 0xFF;
       noti.value[8] = (rgbc.clear >> 8) & 0xFF;
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+      HalColorInit(COLOR_SENSOR_ADDR2);
     }
     else{
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
       clrcnt = 1;
-      HalColorInit(COLOR_SENSOR_ADDR2);
+      //HalColorInit(COLOR_SENSOR_ADDR);
       struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
 
       noti.value[9] = rgbc2.red & 0xFF;
@@ -973,9 +976,11 @@ static void performPeriodicTask( void )
       {
         message_counter++;
       }
+      HalColorInit(COLOR_SENSOR_ADDR);
     }
-    //P0 = 0;
+    //P0_5 = 0;
   }
+  
   if(globalState == 4){
     //Terminate
     globalState = 1;
