@@ -865,6 +865,7 @@ static void performPeriodicTask( void )
     else if(result == FALSE){
       noti.len = 1;
       noti.value[0] = 0xFA;
+      isConnected = FALSE;
       GATT_Notification(0, &noti, FALSE);
       return;
     }
