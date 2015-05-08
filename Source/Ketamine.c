@@ -56,6 +56,7 @@
 #include "npi.h"
 #include "TCS3414CS.h"
 #include "eeprom.h"
+#include "Application.h"
 
 #include "gatt.h"
 
@@ -93,7 +94,8 @@
 
 // How often to perform periodic event
 //#define KTM_PERIODIC_EVT_PERIOD                   100
-#define KTM_PERIODIC_EVT_PERIOD                   2000
+#define KTM_BROADCAST_EVT_PERIOD                   2000
+#define KTM_PERIODIC_EVT_PERIOD                   1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -494,7 +496,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     // Start Bond Manager
     VOID GAPBondMgr_Register( &Ketamine_BondMgrCBs );
     
-    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD );
+    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
 
     return ( events ^ KTM_START_DEVICE_EVT );
   }
@@ -519,7 +521,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = TRUE;
         if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD/2 );
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD/2 );
         }
       }
       else
@@ -527,7 +529,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = FALSE;
         if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD  ); // adjust duty cycle 8000
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD  ); // adjust duty cycle 8000
         }
       }
       //change the GAP advertisement status to opposite of current status
@@ -823,6 +825,7 @@ static void performPeriodicTask( void )
 //  static attHandleValueNoti_t noti;  
 //  noti.handle = 0x2E;  
 //  noti.len = 16;
+  noti.handle = 0x2E;
   int j = 0;
   for(;j<20;j++){
     buf[j] = 0;
@@ -833,14 +836,17 @@ static void performPeriodicTask( void )
     // Terminate
     GAPRole_TerminateConnection();
     globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
   }
   
   
   if(isConnected == FALSE || counter % 5 == 1){
     // EEPROM read
     bool result = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-    noti.handle = 0x2E;
+    //noti.handle = 0x2E;
     if(result == TRUE ){
+      sendReadBuf(&noti, buf, 6, 0xFB);
+      /*
       noti.len = 6;
       noti.value[0] = 0xFB;
       noti.value[1] = buf[0]; 
@@ -859,14 +865,16 @@ static void performPeriodicTask( void )
           //noti.value[6] = counter;
           GATT_Notification(0, &noti, FALSE);
       }
+      */
       isConnected = TRUE;
       return;
     }
     else if(result == FALSE){
-      noti.len = 1;
-      noti.value[0] = 0xFA;
+      //noti.len = 1;
+      //noti.value[0] = 0xFA;
+      sendReadBuf(&noti, buf, 1, 0xFA);
       isConnected = FALSE;
-      GATT_Notification(0, &noti, FALSE);
+      //GATT_Notification(0, &noti, FALSE);
       return;
     }
   }
