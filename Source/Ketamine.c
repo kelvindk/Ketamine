@@ -58,6 +58,7 @@
 #include "eeprom.h"
 #include "Application.h"
 
+
 #include "gatt.h"
 
 #include "hci.h"
@@ -103,12 +104,12 @@
 // Limited discoverable mode advertises for 30.72s, and then stops
 // General discoverable mode advertises indefinitely
 
-#if defined ( CC2540_MINIDK )
-#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
-#else
-#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_GENERAL
+//#if defined ( CC2540_MINIDK )
 //#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
-#endif  // defined ( CC2540_MINIDK )
+//#else
+//#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_GENERAL
+#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
+//#endif  // defined ( CC2540_MINIDK )
 
 // Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
 #define DEFAULT_DESIRED_MIN_CONN_INTERVAL     10
@@ -210,8 +211,8 @@ static uint8 advertData[] =
   // discoverable mode (advertises indefinitely)
   0x02,   // length of this data
   GAP_ADTYPE_FLAGS,
+  //DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
   DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_BREDR_NOT_SUPPORTED,
-  //DEFAULT_DISCOVERABLE_MODE | GAP_ADTYPE_FLAGS_LIMITED,
 
   // service UUID, to notify central devices what services are included
   // in this peripheral
@@ -225,27 +226,9 @@ static uint8 advertData[] =
 // GAP GATT Attributes
 static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
-static uint8 somedata1[] =
-{
-  0x61,   // 'a'
-  0x70,   // 'p'
-  0x70,   // 'p'
-  0x6c,   // 'l'
-  0x65,   // 'e'
-};
-
-static uint8 somedata2[] =
-{
-  0x65,   // 'e'
-  0x6c,   // 'l'
-  0x70,   // 'p'
-  0x70,   // 'p'
-  0x61,   // 'a'
-};
 
 static uint8 globalState = 1;
 static uint16 globalCount = 0; 
-static uint8 advCount = 0; 
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -467,6 +450,8 @@ void Ketamine_Init( uint8 task_id )
  *
  * @return  events not processed
  */
+uint8 advCount = 0; 
+
 uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 {
 
@@ -503,13 +488,13 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
   if ( events & KTM_PERIODIC_EVT )
   {
-    if(advCount > 20){
-      return (events ^ KTM_PERIODIC_EVT);
-    }
     if( gapProfileState != GAPROLE_CONNECTED )
     {
-      advCount++;
-
+      advCount = advCount + 1;
+      if(advCount >= 5){
+        advCount = 0;
+        return (events ^ KTM_PERIODIC_EVT);
+      }
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -538,7 +523,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     
     
     // Restart timer
-    else if ( KTM_PERIODIC_EVT_PERIOD )
+    else if( KTM_PERIODIC_EVT_PERIOD )
     {
       performPeriodicTask();
       advCount = 0;
@@ -708,7 +693,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
           HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
           
-          // Boot pic32 & UART
+
           OpenUART();
 //          HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
           // Set timer for first periodic event
@@ -737,7 +722,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;      
     case GAPROLE_WAITING:
       {
-        // Close Pic32 & UART
         CloseUART();
         
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -811,8 +795,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 /*Variables for application control*/
 unsigned int counter =  0;
 uint8 buf[20];
-uint8 eepcnt = 0;
-uint8 clrcnt = 0;
+bool eepResult = false;
+uint8 clrCnt = 0;
 uint16 firstThres = 20;
 uint16 secondThres = 15;
 bool isConnected = FALSE;
@@ -822,131 +806,70 @@ attHandleValueNoti_t noti;
 
 static void performPeriodicTask( void )
 { 
-//  static attHandleValueNoti_t noti;  
-//  noti.handle = 0x2E;  
-//  noti.len = 16;
-  noti.handle = 0x2E;
-  int j = 0;
-  for(;j<20;j++){
-    buf[j] = 0;
+  int i;
+  for(i = 0; i < 20; i++){
+    buf[i] = 0;
   }
   counter++;
   globalCount++;
+  
   if(globalCount > 300){
-    // Terminate
+    // Terminate after globalState is not changed for 10 min.
     GAPRole_TerminateConnection();
     globalState = 1;
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
   }
   
-  
-  if(isConnected == FALSE || counter % 5 == 1){
-    // EEPROM read
-    bool result = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-    //noti.handle = 0x2E;
-    if(result == TRUE ){
-      sendReadBuf(&noti, buf, 6, 0xFB);
-      /*
-      noti.len = 6;
-      noti.value[0] = 0xFB;
-      noti.value[1] = buf[0]; 
-      noti.value[2] = buf[1]; 
-      noti.value[3] = buf[2]; 
-      noti.value[4] = buf[3]; 
-      noti.value[5] = buf[4]; 
-      if(counter < 10){
-        while(counter < 10){
-          //noti.value[6] = counter;
-          GATT_Notification(0, &noti, FALSE);
-          counter++;
-        }
-      }
-      else{
-          //noti.value[6] = counter;
-          GATT_Notification(0, &noti, FALSE);
-      }
-      */
-      isConnected = TRUE;
-      return;
-    }
-    else if(result == FALSE){
-      //noti.len = 1;
-      //noti.value[0] = 0xFA;
-      sendReadBuf(&noti, buf, 1, 0xFA);
-      isConnected = FALSE;
-      //GATT_Notification(0, &noti, FALSE);
-      return;
-    }
+  if(counter % 5 == 1){
+    eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+    if(eepResult == TRUE )
+      sendReadBuf(&noti, buf, 5, 0xFB);
   }
-  if(globalState == 1)
+  
+  if(eepResult == false){
+    sendReadBuf(&noti, buf, 0, 0xFA);
     return;
+  }
   
-  
-  
-  /*Write EEPROM
-  if( eepcnt == 1){
-    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata1, sizeof(somedata1));
-    HalI2CDisable();
-    ST_HAL_DELAY(1250);
-    eepcnt = 0;
-  }else{
-    i2c_eeprom_write_page(EEPROM_ADDR, 0, somedata2, sizeof(somedata2));
-    HalI2CDisable();
-    ST_HAL_DELAY(1250);
-    eepcnt = 1;
-  } 
-  */
-  
-  if(globalState == 2){
+  switch (globalState){
+  case 1:
+    //if(eepResult == TRUE )
+    //  sendReadBuf(&noti, buf, 6, 0xFB);
+    break;
+    
+  case 2:
     /*Test ADC*/
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
-    noti.handle = 0x2E;
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
-    //noti.value[0] = adcvalue & 0xFF;
-    //noti.value[1] = (adcvalue >> 8) & 0xFF;
+    buf[0] = adcvalue & 0xFF;
+    //buf[1] = (adcvalue >> 8) & 0xFF;
+    buf[1] = osal_timer_num_active();
     if(isSecondSaliva == FALSE){
       if(isfirstSaliva == FALSE){
-        noti.len = 3;
-        noti.value[0] = 0xFC;
-        noti.value[1] = adcvalue & 0xFF;
-        noti.value[2] = (adcvalue >> 8) & 0xFF;
-        GATT_Notification(0, &noti, FALSE);
-        if(adcvalue > firstThres){
+        sendReadBuf(&noti, buf, 2, 0xFC);
+        if(adcvalue > firstThres)
           isfirstSaliva = TRUE;
-        }
-        return;
       }else{
-        noti.len = 3;
-        noti.value[0] = 0xFD;
-        noti.value[1] = adcvalue & 0xFF;
-        noti.value[2] = (adcvalue >> 8) & 0xFF;
-        GATT_Notification(0, &noti, FALSE);
+        sendReadBuf(&noti, buf, 2, 0xFD);
         if(adcvalue < secondThres)
           isSecondSaliva = TRUE;
-        return;
       }
     }else{
-      noti.len = 3;
-      noti.value[0] = 0xFE;
-      noti.value[1] = adcvalue & 0xFF;
-      noti.value[2] = (adcvalue >> 8) & 0xFF;
-      GATT_Notification(0, &noti, FALSE);
-      return;
+      sendReadBuf(&noti, buf, 2, 0xFE);
     }
-  }
-  if(globalState == 3){
-    /*TEST COLOR SENSOR*/
+    break;
+    
+  case 3:
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
     P0 = 0x20;
-    ST_HAL_DELAY(1200);
+    ST_HAL_DELAY(1250);
     
-    if( clrcnt == 1){
+    if( clrCnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
-      clrcnt = 0;
-      
+      clrCnt = 0;
       noti.handle = 0x2E;  
       noti.len = 17;
       //HalColorInit(COLOR_SENSOR_ADDR2); //0x39
@@ -966,10 +889,9 @@ static void performPeriodicTask( void )
     else{
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
-      clrcnt = 1;
+      clrCnt = 1;
       //HalColorInit(COLOR_SENSOR_ADDR);
       struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-
       noti.value[9] = rgbc2.red & 0xFF;
       noti.value[10] = (rgbc2.red >> 8) & 0xFF;
       noti.value[11] = rgbc2.green & 0xFF;
@@ -979,23 +901,82 @@ static void performPeriodicTask( void )
       noti.value[15] = rgbc2.clear & 0xFF;
       noti.value[16] = (rgbc2.clear >> 8) & 0xFF;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-//  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
-   
-      if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
-      {
-        message_counter++;
-      }
+      GATT_Notification(0, &noti, FALSE);
       HalColorInit(COLOR_SENSOR_ADDR);
     }
-    //P0_5 = 0;
+    break;
+    
+  case 4:
+    globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    GAPRole_TerminateConnection();
+    break;
+    
+  case 5:
+    globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    GAPRole_TerminateConnection();
+    break;
+    
+  default:
+    break;
   }
   
+  /*
+  if(globalState == 3){
+    P0SEL &= ~0x38;
+    P0DIR |= 0x38;
+    P0 = 0x20;
+    ST_HAL_DELAY(1250);
+    
+    if( clrCnt == 1){
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      clrCnt = 0;
+      noti.handle = 0x2E;  
+      noti.len = 17;
+      //HalColorInit(COLOR_SENSOR_ADDR2); //0x39
+      struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
+      noti.value[0] = 0xFF;
+      noti.value[1] = rgbc.red & 0xFF;
+      noti.value[2] = (rgbc.red >> 8) & 0xFF;
+      noti.value[3] = rgbc.green & 0xFF;
+      noti.value[4] = (rgbc.green >> 8) & 0xFF;
+      noti.value[5] = rgbc.blue & 0xFF;
+      noti.value[6] = (rgbc.blue >> 8) & 0xFF;
+      noti.value[7] = rgbc.clear & 0xFF;
+      noti.value[8] = (rgbc.clear >> 8) & 0xFF;
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+      HalColorInit(COLOR_SENSOR_ADDR2);
+    }
+    else{
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      clrCnt = 1;
+      //HalColorInit(COLOR_SENSOR_ADDR);
+      struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+      noti.value[9] = rgbc2.red & 0xFF;
+      noti.value[10] = (rgbc2.red >> 8) & 0xFF;
+      noti.value[11] = rgbc2.green & 0xFF;
+      noti.value[12] = (rgbc2.green >> 8) & 0xFF;
+      noti.value[13] = rgbc2.blue & 0xFF;
+      noti.value[14] = (rgbc2.blue >> 8) & 0xFF;
+      noti.value[15] = rgbc2.clear & 0xFF;
+      noti.value[16] = (rgbc2.clear >> 8) & 0xFF;
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+      GATT_Notification(0, &noti, FALSE);
+      HalColorInit(COLOR_SENSOR_ADDR);
+    }
+  }
+  */
+  /*
   if(globalState == 4){
     //Terminate
     globalState = 1;
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
     GAPRole_TerminateConnection();
   }
+  */
 }
 
 /*********************************************************************

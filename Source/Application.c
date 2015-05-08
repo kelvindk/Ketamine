@@ -17,15 +17,6 @@ static uint8 somedata1[] =
   0x65,   // 'e'
 };
 
-static uint8 somedata2[] =
-{
-  0x65,   // 'e'
-  0x6c,   // 'l'
-  0x70,   // 'p'
-  0x70,   // 'p'
-  0x61,   // 'a'
-};
-
 bool writeTestPaperId(uint8* buf, uint8 length){
   i2c_eeprom_write_page(EEPROM_ADDR, 0, buf, length);
   HalI2CDisable();
@@ -35,7 +26,7 @@ bool writeTestPaperId(uint8* buf, uint8 length){
 bool sendReadBuf(attHandleValueNoti_t* ptrNoti, uint8* buf, uint8 length, uint8 preamble){
   int i;
   ptrNoti->handle = 0x2E;
-  ptrNoti->len = length;
+  ptrNoti->len = length + 1;
   ptrNoti->value[0] = preamble;
   for(i = 0; i < length; i++){
     ptrNoti->value[i+1] = buf[i];
