@@ -872,7 +872,7 @@ static void performPeriodicTask( void )
       clrCnt = 0;
       noti.handle = 0x2E;  
       noti.len = 17;
-      //HalColorInit(COLOR_SENSOR_ADDR2); //0x39
+      HalColorInit(COLOR_SENSOR_ADDR); //0x39
       struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
       noti.value[0] = 0xFF;
       noti.value[1] = rgbc.red & 0xFF;
@@ -884,13 +884,13 @@ static void performPeriodicTask( void )
       noti.value[7] = rgbc.clear & 0xFF;
       noti.value[8] = (rgbc.clear >> 8) & 0xFF;
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
-      HalColorInit(COLOR_SENSOR_ADDR2);
+      //HalColorInit(COLOR_SENSOR_ADDR2);
     }
     else{
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1250);
       clrCnt = 1;
-      //HalColorInit(COLOR_SENSOR_ADDR);
+      HalColorInit(COLOR_SENSOR_ADDR2);
       struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
       noti.value[9] = rgbc2.red & 0xFF;
       noti.value[10] = (rgbc2.red >> 8) & 0xFF;
@@ -902,7 +902,7 @@ static void performPeriodicTask( void )
       noti.value[16] = (rgbc2.clear >> 8) & 0xFF;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
       GATT_Notification(0, &noti, FALSE);
-      HalColorInit(COLOR_SENSOR_ADDR);
+      //HalColorInit(COLOR_SENSOR_ADDR);
     }
     break;
     
