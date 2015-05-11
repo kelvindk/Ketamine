@@ -493,6 +493,10 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       advCount = advCount + 1;
       if(advCount >= 5){
         advCount = 0;
+        globalState = 1;
+        globalCount = 0; 
+        uint8 disabled = FALSE;
+        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
         return (events ^ KTM_PERIODIC_EVT);
       }
       uint8 current_adv_enabled_status;
@@ -844,7 +848,7 @@ static void performPeriodicTask( void )
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
     buf[0] = adcvalue & 0xFF;
     //buf[1] = (adcvalue >> 8) & 0xFF;
-    buf[1] = osal_timer_num_active();
+    buf[1] = sendAckMessage(buf[0]);
     if(isSecondSaliva == FALSE){
       if(isfirstSaliva == FALSE){
         sendReadBuf(&noti, buf, 2, 0xFC);
@@ -904,15 +908,10 @@ static void performPeriodicTask( void )
       GATT_Notification(0, &noti, FALSE);
       //HalColorInit(COLOR_SENSOR_ADDR);
     }
+    P0_5 = 0;
     break;
     
   case 4:
-    globalState = 1;
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    GAPRole_TerminateConnection();
-    break;
-    
-  case 5:
     globalState = 1;
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
     GAPRole_TerminateConnection();
@@ -1064,8 +1063,8 @@ void OpenUART(void)
   //HalAdcInit ();
   //HalAdcSetReference (HAL_ADC_REF_AVDD);
  
-  // HalUARTInit();        // Init UART on DMA1
-  // NPI_InitTransport(cSerialPacketParser);
+  HalUARTInit();        // Init UART on DMA1
+  NPI_InitTransport(cSerialPacketParser);
 }
 
 /*********************************************************************
