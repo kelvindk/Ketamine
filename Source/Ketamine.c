@@ -490,8 +490,13 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      P0SEL = 0;
+      P0DIR = 0xFF;
+      P0 = 0;
       advCount = advCount + 1;
-      if(advCount >= 5){
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
+      if(advCount >= 20){
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_TOGGLE );
         advCount = 0;
         globalState = 1;
         globalCount = 0; 
@@ -828,13 +833,15 @@ static void performPeriodicTask( void )
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     if(eepResult == TRUE )
       sendReadBuf(&noti, buf, 5, 0xFB);
+    else
+      sendReadBuf(&noti, buf, 0, 0xFA);
   }
-  
+  /*
   if(eepResult == false){
     sendReadBuf(&noti, buf, 0, 0xFA);
-    return;
+    //return;
   }
-  
+  */
   switch (globalState){
   case 1:
     //if(eepResult == TRUE )
@@ -1079,7 +1086,6 @@ void CloseUART(void)
   P0_5 = 0;               // Turn off regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
   counter = 0;
-  advCount = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }
