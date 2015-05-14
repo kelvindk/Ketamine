@@ -11,8 +11,8 @@ void i2c_eeprom_write_byte(uint8 deviceaddress, uint8 eeaddress, uint8 data){
 void i2c_eeprom_write_page(uint8 deviceaddress, uint8 eeaddresspage, uint8* data, uint8 length){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
     HalSensorWriteReg(eeaddresspage, data, length);
-    // Wait for measurement ready (appx. 1.45 ms)
-    ST_HAL_DELAY(180);
+    // Wait for measurement ready (appx. 14.5 ms)
+    ST_HAL_DELAY(1800);
 }
 uint8 i2c_eeprom_read_byte(uint8 deviceaddress, uint8 eeaddress){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);

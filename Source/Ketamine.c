@@ -226,9 +226,20 @@ static uint8 advertData[] =
 // GAP GATT Attributes
 static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
+static uint8 somedata1[] =
+{
+  0x01,   // 'a'
+  0x02,   // 'p'
+  0x03,   // 'p'
+  0x04,   // 'l'
+  0x05,   // 'e'
+};
 
 static uint8 globalState = 1;
-static uint16 globalCount = 0; 
+static uint16 globalCount = 0;
+static uint8 directTerminate = 0;
+int advMax = 200;
+int globalMax = 120;
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -237,6 +248,7 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg );
 static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
+void initialParameter(void);
 
 #if defined( CC2540_MINIDK )
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
@@ -490,13 +502,20 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      if(directTerminate == 1){
+        directTerminate = 0;
+        uint8 disabled = FALSE;
+        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+        return (events ^ KTM_PERIODIC_EVT);
+      }
+      
       P0SEL = 0;
       P0DIR = 0xFF;
       P0 = 0;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
-      if(advCount >= 20){
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_TOGGLE );
+      if(advCount >= advMax){
+        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
         advCount = 0;
         globalState = 1;
         globalCount = 0; 
@@ -808,7 +827,6 @@ bool eepResult = false;
 uint8 clrCnt = 0;
 uint16 firstThres = 20;
 uint16 secondThres = 15;
-bool isConnected = FALSE;
 bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
 attHandleValueNoti_t noti; 
@@ -821,8 +839,9 @@ static void performPeriodicTask( void )
   }
   counter++;
   globalCount++;
+  //writeTestPaperId(somedata1, 5);
   
-  if(globalCount > 300){
+  if(globalCount > globalMax){
     // Terminate after globalState is not changed for 10 min.
     GAPRole_TerminateConnection();
     globalState = 1;
@@ -846,6 +865,7 @@ static void performPeriodicTask( void )
   case 1:
     //if(eepResult == TRUE )
     //  sendReadBuf(&noti, buf, 6, 0xFB);
+    initialParameter();
     break;
     
   case 2:
@@ -919,11 +939,17 @@ static void performPeriodicTask( void )
     break;
     
   case 4:
-    globalState = 1;
+    initialParameter();
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
     GAPRole_TerminateConnection();
     break;
     
+  case 5:
+    directTerminate = 1;
+    initialParameter();
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    GAPRole_TerminateConnection();
+    break;
   default:
     break;
   }
@@ -1067,8 +1093,6 @@ void OpenUART(void)
 {
   P0_5 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
-  //HalAdcInit ();
-  //HalAdcSetReference (HAL_ADC_REF_AVDD);
  
   HalUARTInit();        // Init UART on DMA1
   NPI_InitTransport(cSerialPacketParser);
@@ -1092,3 +1116,10 @@ void CloseUART(void)
 
 /*********************************************************************
 *********************************************************************/
+
+void initialParameter(void){
+  isfirstSaliva = FALSE;
+  isSecondSaliva = FALSE;
+  eepResult = false;
+  globalState = 1;
+}

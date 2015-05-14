@@ -19,8 +19,8 @@ static uint8 somedata1[] =
 
 bool writeTestPaperId(uint8* buf, uint8 length){
   i2c_eeprom_write_page(EEPROM_ADDR, 0, buf, length);
-  HalI2CDisable();
   ST_HAL_DELAY(125);
+  //HalI2CDisable();
 }
 
 bool sendReadBuf(attHandleValueNoti_t* ptrNoti, uint8* buf, uint8 length, uint8 preamble){
