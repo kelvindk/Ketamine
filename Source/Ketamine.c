@@ -95,7 +95,7 @@
 
 // How often to perform periodic event
 //#define KTM_PERIODIC_EVT_PERIOD                   100
-#define KTM_BROADCAST_EVT_PERIOD                   2000
+#define KTM_BROADCAST_EVT_PERIOD                   500
 #define KTM_PERIODIC_EVT_PERIOD                   1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
@@ -168,9 +168,11 @@ static uint8 scanRspData[] =
   // complete name
   0x14,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-  0x53,   // 'S'
-  0x69,   // 'i'
-  0x6d,   // 'm'
+  //0x53,   // 'S'
+  //0x69,   // 'i'
+  //0x6d,   // 'm'
+  0x61,   // 'a'
+  0x70,   // 'p'
   0x70,   // 'p'
   0x6c,   // 'l'
   0x65,   // 'e'
@@ -408,7 +410,9 @@ void Ketamine_Init( uint8 task_id )
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
-
+  // Register for all key events - This app will handle all key events
+  //RegisterForKeys( Ketamine_TaskID );
+  
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
 #if defined FEATURE_OAD
@@ -534,7 +538,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = TRUE;
         if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD/2 );
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
         }
       }
       else
@@ -542,7 +546,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         new_adv_enabled_status = FALSE;
         if ( KTM_PERIODIC_EVT_PERIOD )
         {
-          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD  ); // adjust duty cycle 8000
+          osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD/10  ); // adjust duty cycle 8000
         }
       }
       //change the GAP advertisement status to opposite of current status
@@ -843,9 +847,10 @@ static void performPeriodicTask( void )
   
   if(globalCount > globalMax){
     // Terminate after globalState is not changed for 10 min.
+    initialParameter();
     GAPRole_TerminateConnection();
-    globalState = 1;
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    globalCount = 0;
   }
   
   if(counter % 5 == 1){
@@ -874,8 +879,8 @@ static void performPeriodicTask( void )
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
     buf[0] = adcvalue & 0xFF;
-    //buf[1] = (adcvalue >> 8) & 0xFF;
-    buf[1] = sendAckMessage(buf[0]);
+    buf[1] = (adcvalue >> 8) & 0xFF;
+    //buf[1] = sendAckMessage(buf[0]);
     if(isSecondSaliva == FALSE){
       if(isfirstSaliva == FALSE){
         sendReadBuf(&noti, buf, 2, 0xFC);
@@ -895,7 +900,7 @@ static void performPeriodicTask( void )
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
     P0 = 0x20;
-    ST_HAL_DELAY(1250);
+    //ST_HAL_DELAY(1250);
     
     if( clrCnt == 1){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
