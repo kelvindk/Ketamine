@@ -72,6 +72,7 @@ extern struct RGBC{
 
 extern void HalColorInit(uint8 addr);
 extern struct RGBC ReadRGB(uint8 addr);
+extern void setReadReg(uint8 addr);
 extern void calculateCoordinate(uint8 addr);
 
 // Helper functions

@@ -834,6 +834,8 @@ uint16 secondThres = 15;
 bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
 attHandleValueNoti_t noti; 
+attHandleValueNoti_t notiColor;
+
 
 static void performPeriodicTask( void )
 { 
@@ -904,45 +906,55 @@ static void performPeriodicTask( void )
     P0_5 = 1;
     //ST_HAL_DELAY(1250);
     
-    if( clrCnt == 1){
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      clrCnt = 0;
-      noti.handle = 0x2E;  
-      noti.len = 17;
-      HalColorInit(COLOR_SENSOR_ADDR); //0x39
-      struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-      noti.value[0] = 0xFF;
-      noti.value[1] = rgbc.red & 0xFF;
-      noti.value[2] = (rgbc.red >> 8) & 0xFF;
-      noti.value[3] = rgbc.green & 0xFF;
-      noti.value[4] = (rgbc.green >> 8) & 0xFF;
-      noti.value[5] = rgbc.blue & 0xFF;
-      noti.value[6] = (rgbc.blue >> 8) & 0xFF;
-      noti.value[7] = rgbc.clear & 0xFF;
-      noti.value[8] = (rgbc.clear >> 8) & 0xFF;
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+    if( clrCnt < 2 ){
+      if( clrCnt == 0){
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+        ST_HAL_DELAY(1250);
+        notiColor.handle = 0x2E;  
+        notiColor.len = 17;
+        HalColorInit(COLOR_SENSOR_ADDR); //0x39
+        setReadReg(COLOR_SENSOR_ADDR);
+        clrCnt = 1;
+      }else{
+        struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
+        notiColor.value[0] = 0xFF;
+        notiColor.value[1] = rgbc.red & 0xFF;
+        notiColor.value[2] = (rgbc.red >> 8) & 0xFF;
+        notiColor.value[3] = rgbc.green & 0xFF;
+        notiColor.value[4] = (rgbc.green >> 8) & 0xFF;
+        notiColor.value[5] = rgbc.blue & 0xFF;
+        notiColor.value[6] = (rgbc.blue >> 8) & 0xFF;
+        notiColor.value[7] = rgbc.clear & 0xFF;
+        notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+        clrCnt = 2;
+      }
       //HalColorInit(COLOR_SENSOR_ADDR2);
     }
     else{
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      clrCnt = 1;
-      HalColorInit(COLOR_SENSOR_ADDR2);
-      struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-      noti.value[9] = rgbc2.red & 0xFF;
-      noti.value[10] = (rgbc2.red >> 8) & 0xFF;
-      noti.value[11] = rgbc2.green & 0xFF;
-      noti.value[12] = (rgbc2.green >> 8) & 0xFF;
-      noti.value[13] = rgbc2.blue & 0xFF;
-      noti.value[14] = (rgbc2.blue >> 8) & 0xFF;
-      noti.value[15] = rgbc2.clear & 0xFF;
-      noti.value[16] = (rgbc2.clear >> 8) & 0xFF;
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-      GATT_Notification(0, &noti, FALSE);
+      if( clrCnt == 2 ){
+        HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+        ST_HAL_DELAY(1250);
+        HalColorInit(COLOR_SENSOR_ADDR2);
+        setReadReg(COLOR_SENSOR_ADDR2);
+        clrCnt = 3;
+      }
+      else if ( clrCnt == 3 ){
+        struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+        notiColor.value[9] = rgbc2.red & 0xFF;
+        notiColor.value[10] = (rgbc2.red >> 8) & 0xFF;
+        notiColor.value[11] = rgbc2.green & 0xFF;
+        notiColor.value[12] = (rgbc2.green >> 8) & 0xFF;
+        notiColor.value[13] = rgbc2.blue & 0xFF;
+        notiColor.value[14] = (rgbc2.blue >> 8) & 0xFF;
+        notiColor.value[15] = rgbc2.clear & 0xFF;
+        notiColor.value[16] = (rgbc2.clear >> 8) & 0xFF;
+        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+        GATT_Notification(0, &notiColor, FALSE);
+        clrCnt = 0;
+      }
       //HalColorInit(COLOR_SENSOR_ADDR);
     }
-    P0_5 = 0;
     break;
     
   case 4:
@@ -1128,5 +1140,6 @@ void initialParameter(void){
   isfirstSaliva = FALSE;
   isSecondSaliva = FALSE;
   eepResult = false;
-  globalState = 1;
+  globalState = 3;
+  clrCnt = 0;
 }

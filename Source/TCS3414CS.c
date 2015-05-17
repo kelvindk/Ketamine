@@ -7,15 +7,19 @@ void HalColorInit(uint8 addr){
     setGain(addr, GAIN_1|PRESCALER_4);//Set gain value and prescaler value
     setEnableADC(addr);//Start ADC of the color sensor
 }
+void setReadReg(uint8 addr){
+    HalI2CInit(addr, i2cClock_267KHZ);
+    HalSensorWriteReg(REG_BLOCK_READ, NULL, 0);
+}
 struct RGBC ReadRGB(uint8 addr){
     struct RGBC color;
     uint8 buf[20];
     
-    HalI2CInit(addr, i2cClock_267KHZ);
-    HalSensorWriteReg(REG_BLOCK_READ, NULL, 0);
-    
-    ST_HAL_DELAY(2000);
     //HalI2CInit(addr, i2cClock_267KHZ);
+    //HalSensorWriteReg(REG_BLOCK_READ, NULL, 0);
+    
+    //ST_HAL_DELAY(2000);
+    HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorReadReg(addr, buf, 8);
     //HalSensorReadReg(COLOR_SENSOR_ADDR, buf, 8);
     
