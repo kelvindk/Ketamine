@@ -98,13 +98,13 @@
 #undef UTXxIE
 #undef UTXxIF
 #if    (HAL_UART_DMA == 1)
-#define UxCSR                      U0CSR
-#define UxUCR                      U0UCR
-#define UxDBUF                     U0DBUF
-#define UxBAUD                     U0BAUD
-#define UxGCR                      U0GCR
-#define UTXxIE                     UTX0IE
-#define UTXxIF                     UTX0IF
+#define UxCSR                      U1CSR
+#define UxUCR                      U1UCR
+#define UxDBUF                     U1DBUF
+#define UxBAUD                     U1BAUD
+#define UxGCR                      U1GCR
+#define UTXxIE                     UTX1IE
+#define UTXxIF                     UTX1IF
 #elif  (HAL_UART_DMA == 2)
 #define UxCSR                      U1CSR
 #define UxUCR                      U1UCR
@@ -142,10 +142,10 @@
 #undef  DMATRIG_RX
 #undef  DMATRIG_TX
 #if    (HAL_UART_DMA == 1)
-#define DMA_PAD                    U0BAUD
-#define DMA_UxDBUF                 HAL_DMA_U0DBUF
-#define DMATRIG_RX                 HAL_DMA_TRIG_URX0
-#define DMATRIG_TX                 HAL_DMA_TRIG_UTX0
+#define DMA_PAD                    U1BAUD
+#define DMA_UxDBUF                 HAL_DMA_U1DBUF
+#define DMATRIG_RX                 HAL_DMA_TRIG_URX1
+#define DMATRIG_TX                 HAL_DMA_TRIG_UTX1
 #elif  (HAL_UART_DMA == 2)
 #define DMA_PAD                    U1BAUD
 #define DMA_UxDBUF                 HAL_DMA_U1DBUF
@@ -161,18 +161,18 @@
 #undef  IENx
 #undef  IEN_BIT
 #if   (HAL_UART_DMA == 1)
-#define PxDIR                      P0DIR
-#define PxIEN                      P0IEN
-#define PxIFG                      P0IFG
-#define PxIF                       P0IF
-#define DMA_RDYIn                  P0_4
-#define DMA_RDYOut                 P0_5
+#define PxDIR                      P1DIR
+#define PxIEN                      P1IEN
+#define PxIFG                      P1IFG
+#define PxIF                       P1IF
+#define DMA_RDYIn                  P1_4
+#define DMA_RDYOut                 P1_5
 #define DMA_RDYIn_BIT              BV(4)        // Same as the I/O Select for CTS flow control.
 #define DMA_RDYOut_BIT             BV(5)        // Same as the I/O Select for manual RTS flow ctrl.
 // Falling edge ISR on P0 pins.
-#define PICTL_BIT                  BV(0)
-#define IENx                       IEN1
-#define IEN_BIT                    BV(5)
+#define PICTL_BIT                  BV(2)
+#define IENx                       IEN2
+#define IEN_BIT                    BV(4)
 #elif  (HAL_UART_DMA == 2)
 #define PxDIR                      P1DIR
 #define PxIEN                      P1IEN
