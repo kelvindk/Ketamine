@@ -837,6 +837,7 @@ attHandleValueNoti_t noti;
 
 static void performPeriodicTask( void )
 { 
+  //HalLedSet( HAL_LED_2 | HAL_LED_1 , HAL_LED_MODE_OFF );
   int i;
   for(i = 0; i < 20; i++){
     buf[i] = 0;
@@ -866,6 +867,7 @@ static void performPeriodicTask( void )
     //return;
   }
   */
+  
   switch (globalState){
   case 1:
     //if(eepResult == TRUE )
@@ -874,7 +876,7 @@ static void performPeriodicTask( void )
     break;
     
   case 2:
-    /*Test ADC*/
+    
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
@@ -899,7 +901,7 @@ static void performPeriodicTask( void )
   case 3:
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
-    P0 = 0x20;
+    P0_5 = 1;
     //ST_HAL_DELAY(1250);
     
     if( clrCnt == 1){
@@ -1099,8 +1101,8 @@ void OpenUART(void)
   P0_5 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
  
-  HalUARTInit();        // Init UART on DMA1
-  NPI_InitTransport(cSerialPacketParser);
+  //HalUARTInit();        // Init UART on DMA1
+  //NPI_InitTransport(cSerialPacketParser);
 }
 
 /*********************************************************************
