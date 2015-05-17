@@ -99,7 +99,7 @@
 #define KTM_PERIODIC_EVT_PERIOD                   1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
-#define DEFAULT_ADVERTISING_INTERVAL          160
+#define DEFAULT_ADVERTISING_INTERVAL          40
 
 // Limited discoverable mode advertises for 30.72s, and then stops
 // General discoverable mode advertises indefinitely
@@ -112,22 +112,22 @@
 //#endif  // defined ( CC2540_MINIDK )
 
 // Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     10
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     80
 
 // Maximum connection interval (units of 1.25ms, 800=1000ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     10
+#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     800
 
 // Slave latency to use if automatic parameter update request is enabled
 #define DEFAULT_DESIRED_SLAVE_LATENCY         0
 
 // Supervision timeout value (units of 10ms, 1000=10s) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_CONN_TIMEOUT          2000
+#define DEFAULT_DESIRED_CONN_TIMEOUT          1000
 
 // Whether to enable automatic parameter update request when a connection is formed
 #define DEFAULT_ENABLE_UPDATE_REQUEST         TRUE
 
 // Connection Pause Peripheral time value (in seconds)
-#define DEFAULT_CONN_PAUSE_PERIPHERAL         1
+#define DEFAULT_CONN_PAUSE_PERIPHERAL         5
 
 // Company Identifier: Texas Instruments Inc. (13)
 #define TI_COMPANY_ID                         0x000D
@@ -166,8 +166,8 @@ static gaprole_States_t gapProfileState = GAPROLE_INIT;
 static uint8 scanRspData[] =
 {
   // complete name
-  0x14,   // length of this data
-  GAP_ADTYPE_LOCAL_NAME_COMPLETE,
+  0x13,   // length of this data
+  GAP_ADTYPE_LOCAL_NAME_COMPLETE, 
   //0x53,   // 'S'
   //0x69,   // 'i'
   //0x6d,   // 'm'
@@ -443,8 +443,8 @@ void Ketamine_Init( uint8 task_id )
 #endif // defined ( DC_DC_P0_7 )
 
 //  //turn on overlapped processing
-  HCI_EXT_HaltDuringRfCmd(HCI_EXT_HALT_DURING_RF_DISABLE);
-  HCI_EXT_OverlappedProcessingCmd(HCI_EXT_ENABLE_OVERLAPPED_PROCESSING);
+//  HCI_EXT_HaltDuringRfCmd(HCI_EXT_HALT_DURING_RF_DISABLE);
+//  HCI_EXT_OverlappedProcessingCmd(HCI_EXT_ENABLE_OVERLAPPED_PROCESSING);
 //  
 //  //disable halt during RF (needed for UART / SPI)
 //  HCI_EXT_HaltDuringRfCmd(HCI_EXT_HALT_DURING_RF_DISABLE);
@@ -518,15 +518,15 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       P0 = 0;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
-      if(advCount >= advMax){
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-        advCount = 0;
-        globalState = 1;
-        globalCount = 0; 
-        uint8 disabled = FALSE;
-        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-        return (events ^ KTM_PERIODIC_EVT);
-      }
+//      if(advCount >= advMax){
+//        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+//        advCount = 0;
+//        globalState = 1;
+//        globalCount = 0; 
+//        uint8 disabled = FALSE;
+//        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+//        return (events ^ KTM_PERIODIC_EVT);
+//      }
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -845,13 +845,13 @@ static void performPeriodicTask( void )
   globalCount++;
   //writeTestPaperId(somedata1, 5);
   
-  if(globalCount > globalMax){
-    // Terminate after globalState is not changed for 10 min.
-    initialParameter();
-    GAPRole_TerminateConnection();
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    globalCount = 0;
-  }
+//  if(globalCount > globalMax){
+//    // Terminate after globalState is not changed for 10 min.
+//    initialParameter();
+//    GAPRole_TerminateConnection();
+//    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//    globalCount = 0;
+//  }
   
   if(counter % 5 == 1){
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
