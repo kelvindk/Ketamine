@@ -97,7 +97,7 @@
 //#define KTM_PERIODIC_EVT_PERIOD                   100
 #define KTM_BROADCAST_EVT_PERIOD                   500
 #define KTM_PERIODIC_EVT_PERIOD                   1000
-#define KTM_COLORDELAY_PERIOD                       20
+#define KTM_COLORDELAY_PERIOD                       30
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -105,30 +105,26 @@
 // Limited discoverable mode advertises for 30.72s, and then stops
 // General discoverable mode advertises indefinitely
 
-//#if defined ( CC2540_MINIDK )
-//#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
-//#else
 //#define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_GENERAL
 #define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
-//#endif  // defined ( CC2540_MINIDK )
 
 // Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     10
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     80
 
 // Maximum connection interval (units of 1.25ms, 800=1000ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     10
+#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     800
 
 // Slave latency to use if automatic parameter update request is enabled
 #define DEFAULT_DESIRED_SLAVE_LATENCY         0
 
 // Supervision timeout value (units of 10ms, 1000=10s) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_CONN_TIMEOUT          2000
+#define DEFAULT_DESIRED_CONN_TIMEOUT          1000
 
 // Whether to enable automatic parameter update request when a connection is formed
 #define DEFAULT_ENABLE_UPDATE_REQUEST         TRUE
 
 // Connection Pause Peripheral time value (in seconds)
-#define DEFAULT_CONN_PAUSE_PERIPHERAL         1
+#define DEFAULT_CONN_PAUSE_PERIPHERAL         5
 
 // Company Identifier: Texas Instruments Inc. (13)
 #define TI_COMPANY_ID                         0x000D
@@ -167,13 +163,11 @@ static gaprole_States_t gapProfileState = GAPROLE_INIT;
 static uint8 scanRspData[] =
 {
   // complete name
-  0x14,   // length of this data
-  GAP_ADTYPE_LOCAL_NAME_COMPLETE,
-  //0x53,   // 'S'
-  //0x69,   // 'i'
-  //0x6d,   // 'm'
-  0x61,   // 'a'
-  0x70,   // 'p'
+  0x0d,   // length of this data
+  GAP_ADTYPE_LOCAL_NAME_COMPLETE, /*
+  0x53,   // 'S'
+  0x69,   // 'i'
+  0x6d,   // 'm'
   0x70,   // 'p'
   0x6c,   // 'l'
   0x65,   // 'e'
@@ -189,7 +183,19 @@ static uint8 scanRspData[] =
   0x65,   // 'e'
   0x72,   // 'r'
   0x61,   // 'a'
-  0x6c,   // 'l'
+  0x6c,   // 'l'  */
+  0x4b,   // 'K'
+  0x65,   // 'e'
+  0x74,   // 't'
+  0x44,   // 'D'
+  0x69,   // 'i'
+  0x61,   // 'a'
+  0x72,   // 'r'
+  0x79,   // 'y'
+  0x2d,   // '-'
+  0x30,   // '0'
+  0x30,   // '0'
+  0x30,   // '0'
 
   // connection interval range
   0x05,   // length of this data
@@ -253,6 +259,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 void initialParameter(void);
+void readColorAfterDelay(uint8 state);
 
 #if defined( CC2540_MINIDK )
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
@@ -567,7 +574,8 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     return (events ^ KTM_PERIODIC_EVT);
   }
   if ( events & KTM_COLORDELAY_EVT ){
-     return (events ^ KTM_COLORDELAY_EVT);
+    readColorAfterDelay(clrCnt);
+    return (events ^ KTM_COLORDELAY_EVT);
   }
 
   // Discard unknown events
@@ -840,11 +848,11 @@ attHandleValueNoti_t notiColor;
 
 static void performPeriodicTask( void )
 { 
-  //HalLedSet( HAL_LED_2 | HAL_LED_1 , HAL_LED_MODE_OFF );
   int i;
   for(i = 0; i < 20; i++){
     buf[i] = 0;
   }
+  
   counter++;
   globalCount++;
   //writeTestPaperId(somedata1, 5);
@@ -908,6 +916,26 @@ static void performPeriodicTask( void )
     P0DIR |= 0x38;
     P0_5 = 1;
     
+    if(clrCnt == 0){
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      notiColor.handle = 0x2E;  
+      notiColor.len = 17;
+      for(i = 0; i < 17; i++){
+        notiColor.value[i] = 0;
+      }
+      HalColorInit(COLOR_SENSOR_ADDR); //0x39
+      setReadReg(COLOR_SENSOR_ADDR);
+      osal_start_timerEx( Ketamine_TaskID, KTM_COLORDELAY_EVT, KTM_COLORDELAY_PERIOD );
+    }
+    else{
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1250);
+      HalColorInit(COLOR_SENSOR_ADDR2);
+      setReadReg(COLOR_SENSOR_ADDR2);
+      osal_start_timerEx( Ketamine_TaskID, KTM_COLORDELAY_EVT, KTM_COLORDELAY_PERIOD );
+    }
+    /*
     if( clrCnt < 2 ){
       if(clrCnt == 0){
         HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
@@ -963,6 +991,7 @@ static void performPeriodicTask( void )
         P0_5 = 0;
       }
     }
+    */
     break;
     
   case 4:
@@ -980,62 +1009,39 @@ static void performPeriodicTask( void )
   default:
     break;
   }
-  
-  /*
-  if(globalState == 3){
-    P0SEL &= ~0x38;
-    P0DIR |= 0x38;
-    P0 = 0x20;
-    ST_HAL_DELAY(1250);
-    
-    if( clrCnt == 1){
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      clrCnt = 0;
-      noti.handle = 0x2E;  
-      noti.len = 17;
-      //HalColorInit(COLOR_SENSOR_ADDR2); //0x39
-      struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-      noti.value[0] = 0xFF;
-      noti.value[1] = rgbc.red & 0xFF;
-      noti.value[2] = (rgbc.red >> 8) & 0xFF;
-      noti.value[3] = rgbc.green & 0xFF;
-      noti.value[4] = (rgbc.green >> 8) & 0xFF;
-      noti.value[5] = rgbc.blue & 0xFF;
-      noti.value[6] = (rgbc.blue >> 8) & 0xFF;
-      noti.value[7] = rgbc.clear & 0xFF;
-      noti.value[8] = (rgbc.clear >> 8) & 0xFF;
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
-      HalColorInit(COLOR_SENSOR_ADDR2);
-    }
-    else{
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      clrCnt = 1;
-      //HalColorInit(COLOR_SENSOR_ADDR);
-      struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-      noti.value[9] = rgbc2.red & 0xFF;
-      noti.value[10] = (rgbc2.red >> 8) & 0xFF;
-      noti.value[11] = rgbc2.green & 0xFF;
-      noti.value[12] = (rgbc2.green >> 8) & 0xFF;
-      noti.value[13] = rgbc2.blue & 0xFF;
-      noti.value[14] = (rgbc2.blue >> 8) & 0xFF;
-      noti.value[15] = rgbc2.clear & 0xFF;
-      noti.value[16] = (rgbc2.clear >> 8) & 0xFF;
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-      GATT_Notification(0, &noti, FALSE);
-      HalColorInit(COLOR_SENSOR_ADDR);
-    }
+} 
+
+void readColorAfterDelay(uint8 state){
+  if(state == 0){
+    struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
+    notiColor.value[0] = 0xFF;
+    notiColor.value[1] = rgbc.red & 0xFF;
+    notiColor.value[2] = (rgbc.red >> 8) & 0xFF;
+    notiColor.value[3] = rgbc.green & 0xFF;
+    notiColor.value[4] = (rgbc.green >> 8) & 0xFF;
+    notiColor.value[5] = rgbc.blue & 0xFF;
+    notiColor.value[6] = (rgbc.blue >> 8) & 0xFF;
+    notiColor.value[7] = rgbc.clear & 0xFF;
+    notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
+    clrCnt = 1;
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
+    P0_5 = 0;
   }
-  */
-  /*
-  if(globalState == 4){
-    //Terminate
-    globalState = 1;
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    GAPRole_TerminateConnection();
+  else{
+    struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
+    notiColor.value[9] = rgbc2.red & 0xFF;
+    notiColor.value[10] = (rgbc2.red >> 8) & 0xFF;
+    notiColor.value[11] = rgbc2.green & 0xFF;
+    notiColor.value[12] = (rgbc2.green >> 8) & 0xFF;
+    notiColor.value[13] = rgbc2.blue & 0xFF;
+    notiColor.value[14] = (rgbc2.blue >> 8) & 0xFF;
+    notiColor.value[15] = rgbc2.clear & 0xFF;
+    notiColor.value[16] = (rgbc2.clear >> 8) & 0xFF;
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
+    GATT_Notification(0, &notiColor, FALSE);
+    clrCnt = 0;
+    P0_5 = 0;
   }
-  */
 }
 
 /*********************************************************************
@@ -1120,7 +1126,6 @@ void OpenUART(void)
 {
   P0_5 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
- 
   //HalUARTInit();        // Init UART on DMA1
   //NPI_InitTransport(cSerialPacketParser);
 }
@@ -1148,6 +1153,6 @@ void initialParameter(void){
   isfirstSaliva = FALSE;
   isSecondSaliva = FALSE;
   eepResult = false;
-  globalState = 3;
+  globalState = 1;
   clrCnt = 0;
 }
