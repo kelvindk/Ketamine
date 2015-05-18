@@ -18,10 +18,8 @@ struct RGBC ReadRGB(uint8 addr){
     //HalI2CInit(addr, i2cClock_267KHZ);
     //HalSensorWriteReg(REG_BLOCK_READ, NULL, 0);
     
-    //ST_HAL_DELAY(2000);
     HalI2CInit(addr, i2cClock_267KHZ);
     HalSensorReadReg(addr, buf, 8);
-    //HalSensorReadReg(COLOR_SENSOR_ADDR, buf, 8);
     
     color.green = buf[1]*256 + buf[0];
     color.red = buf[3]*256 + buf[2];

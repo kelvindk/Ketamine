@@ -97,6 +97,7 @@
 //#define KTM_PERIODIC_EVT_PERIOD                   100
 #define KTM_BROADCAST_EVT_PERIOD                   500
 #define KTM_PERIODIC_EVT_PERIOD                   1000
+#define KTM_COLORDELAY_PERIOD                       20
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -242,6 +243,7 @@ static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
 int advMax = 200;
 int globalMax = 120;
+uint8 clrCnt = 0;
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -564,8 +566,8 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
     return (events ^ KTM_PERIODIC_EVT);
   }
-  if ( events & KTM_BATTERRY_NOTI_EVT ){
-     return (events ^ KTM_BATTERRY_NOTI_EVT);
+  if ( events & KTM_COLORDELAY_EVT ){
+     return (events ^ KTM_COLORDELAY_EVT);
   }
 
   // Discard unknown events
@@ -828,7 +830,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 unsigned int counter =  0;
 uint8 buf[20];
 bool eepResult = false;
-uint8 clrCnt = 0;
 uint16 firstThres = 20;
 uint16 secondThres = 15;
 bool isfirstSaliva = FALSE;
@@ -906,21 +907,9 @@ static void performPeriodicTask( void )
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
     P0_5 = 1;
-    //ST_HAL_DELAY(1250);
     
     if( clrCnt < 2 ){
       if(clrCnt == 0){
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-        ST_HAL_DELAY(1250);
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );       //(3) larry
-        clrCnt = 1;
-      }
-      else if(clrCnt == 1){
-        clrCnt = 2;
-        //HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
-      }
-      /*
-      if( clrCnt == 0){
         HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
         ST_HAL_DELAY(1250);
         notiColor.handle = 0x2E;  
@@ -931,8 +920,8 @@ static void performPeriodicTask( void )
         HalColorInit(COLOR_SENSOR_ADDR); //0x39
         setReadReg(COLOR_SENSOR_ADDR);
         clrCnt = 1;
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
-      }else{
+      }
+      else if(clrCnt == 1){
         struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
         notiColor.value[0] = 0xFF;
         notiColor.value[1] = rgbc.red & 0xFF;
@@ -945,31 +934,20 @@ static void performPeriodicTask( void )
         notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
         //HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
         clrCnt = 2;
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
+        P0_5 = 0;
       }
-      //HalColorInit(COLOR_SENSOR_ADDR2);
-      */
     }
     else{
       if(clrCnt == 2){
         HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
         ST_HAL_DELAY(1250);
+        HalColorInit(COLOR_SENSOR_ADDR2);
+        setReadReg(COLOR_SENSOR_ADDR2);
         //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );     //  (1) larry
         clrCnt = 3;
       }
       else if (clrCnt == 3){
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
-        clrCnt = 0;
-      }
-      /*
-      if( clrCnt == 2 ){
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-        ST_HAL_DELAY(1250);
-        HalColorInit(COLOR_SENSOR_ADDR2);
-        setReadReg(COLOR_SENSOR_ADDR2);
-        clrCnt = 3;
-        //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-      }
-      else if ( clrCnt == 3 ){
         struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
         notiColor.value[9] = rgbc2.red & 0xFF;
         notiColor.value[10] = (rgbc2.red >> 8) & 0xFF;
@@ -979,11 +957,11 @@ static void performPeriodicTask( void )
         notiColor.value[14] = (rgbc2.blue >> 8) & 0xFF;
         notiColor.value[15] = rgbc2.clear & 0xFF;
         notiColor.value[16] = (rgbc2.clear >> 8) & 0xFF;
-        //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
         GATT_Notification(0, &notiColor, FALSE);
         clrCnt = 0;
+        P0_5 = 0;
       }
-      */
     }
     break;
     
