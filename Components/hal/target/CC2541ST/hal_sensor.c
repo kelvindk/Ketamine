@@ -117,7 +117,7 @@ bool HalSensorWriteReg(uint8 addr, uint8 *pBuf, uint8 nBytes)
   /* Send address and data */
   i = HalI2CWrite(nBytes, buffer);
   if ( i!= nBytes)
-    HAL_TOGGLE_LED2();
+    //HAL_TOGGLE_LED2();
 
   return (i == nBytes);
 }
