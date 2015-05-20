@@ -865,15 +865,15 @@ static void performPeriodicTask( void )
     globalCount = 0;
   }
   
-  /*
-  if(counter % 5 == 1){
+  
+  if(counter % 5 == 1 && globalState != 3){
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     if(eepResult == TRUE )
       sendReadBuf(&noti, buf, 5, 0xFB);
     else
       sendReadBuf(&noti, buf, 0, 0xFA);
   }
-  */
+  
   /*
   if(eepResult == false){
     sendReadBuf(&noti, buf, 0, 0xFA);
@@ -1026,6 +1026,12 @@ void readColorAfterDelay(uint8 state){
     clrCnt = 1;
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
     P0_5 = 0;
+    
+    eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+    if(eepResult == TRUE )
+      sendReadBuf(&noti, buf, 5, 0xFB);
+    else
+      sendReadBuf(&noti, buf, 0, 0xFA);
   }
   else{
     struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
