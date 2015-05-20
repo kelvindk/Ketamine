@@ -247,7 +247,7 @@ static uint8 somedata1[] =
 static uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
-int advMax = 200;
+int advMax = 600;
 int globalMax = 120;
 uint8 clrCnt = 0;
 
@@ -964,6 +964,12 @@ static void performPeriodicTask( void )
         clrCnt = 2;
         HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
         P0_5 = 0;
+        
+        eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+        if(eepResult == TRUE )
+          sendReadBuf(&noti, buf, 5, 0xFB);
+        else
+          sendReadBuf(&noti, buf, 0, 0xFA);
       }
     }
     else{
@@ -995,9 +1001,9 @@ static void performPeriodicTask( void )
     break;
     
   case 4:
-    initialParameter();
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    GAPRole_TerminateConnection();
+//    initialParameter();
+//    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//    GAPRole_TerminateConnection();
     break;
     
   case 5:
@@ -1068,6 +1074,11 @@ static void simpleProfileChangeCB( uint8 paramID )
     case SIMPLEPROFILE_CHAR1:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
       globalState = newValue;
+      if( newValue == 4){
+        initialParameter();
+        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+        GAPRole_TerminateConnection();
+      }
       #if (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLcdWriteStringValue( "Char 1:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
       #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
