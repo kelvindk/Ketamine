@@ -195,7 +195,7 @@ static uint8 scanRspData[] =
   0x2d,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x30,   // '0'
+  0x31,   // '0'
 
   // connection interval range
   0x05,   // length of this data
@@ -250,6 +250,8 @@ static uint8 directTerminate = 0;
 int advMax = 600;
 int globalMax = 120;
 uint8 clrCnt = 0;
+uint8 disconnectCnt = 0;
+uint8 resetFlag = 0;
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -515,13 +517,18 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      if(resetFlag == 1){
+        initialParameter();
+        resetFlag = 0;
+        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+      }
       if(directTerminate == 1){
         directTerminate = 0;
         uint8 disabled = FALSE;
         GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
         return (events ^ KTM_PERIODIC_EVT);
       }
-      
+   
       P0SEL = 0;
       P0DIR = 0xFF;
       P0 = 0;
@@ -857,21 +864,25 @@ static void performPeriodicTask( void )
   globalCount++;
   //writeTestPaperId(somedata1, 5);
   
-  if(globalCount > globalMax){
-    // Terminate after globalState is not changed for 10 min.
-    initialParameter();
-    GAPRole_TerminateConnection();
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    globalCount = 0;
-  }
+//  if(globalCount > globalMax){
+//    // Terminate after globalState is not changed for 10 min.
+//    initialParameter();
+//    GAPRole_TerminateConnection();
+//    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//    globalCount = 0;
+//  }
   
   
-  if(counter % 5 == 1 && globalState != 3){
+  if(globalState < 3){
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-    if(eepResult == TRUE )
+    if(eepResult == TRUE ){
       sendReadBuf(&noti, buf, 5, 0xFB);
-    else
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
+    }
+    else{
       sendReadBuf(&noti, buf, 0, 0xFA);
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
+    }
   }
   
   /*
@@ -885,11 +896,17 @@ static void performPeriodicTask( void )
   case 1:
     //if(eepResult == TRUE )
     //  sendReadBuf(&noti, buf, 6, 0xFB);
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(500);
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+    
     initialParameter();
     break;
     
   case 2:
-    
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(500);
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
@@ -1001,16 +1018,27 @@ static void performPeriodicTask( void )
     break;
     
   case 4:
-//    initialParameter();
-//    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-//    GAPRole_TerminateConnection();
+    if( disconnectCnt == 0){
+      GAPRole_TerminateConnection();
+      disconnectCnt++;
+      resetFlag = 1;
+    }
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1000);
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+    
     break;
     
   case 5:
     directTerminate = 1;
-    initialParameter();
-    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-    GAPRole_TerminateConnection();
+    if( disconnectCnt == 0){
+      GAPRole_TerminateConnection();
+      disconnectCnt++;
+      resetFlag = 1;
+    }
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1000);
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
     break;
   default:
     break;
@@ -1034,10 +1062,14 @@ void readColorAfterDelay(uint8 state){
     P0_5 = 0;
     
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-    if(eepResult == TRUE )
+    if(eepResult == TRUE ){
       sendReadBuf(&noti, buf, 5, 0xFB);
-    else
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
+    }
+    else{
       sendReadBuf(&noti, buf, 0, 0xFA);
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
+    }
   }
   else{
     struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
@@ -1074,11 +1106,9 @@ static void simpleProfileChangeCB( uint8 paramID )
     case SIMPLEPROFILE_CHAR1:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
       globalState = newValue;
-      if( newValue == 4){
-        initialParameter();
-        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-        GAPRole_TerminateConnection();
-      }
+      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
       #if (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLcdWriteStringValue( "Char 1:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
       #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -1142,7 +1172,7 @@ char *bdAddr2Str( uint8 *pAddr )
 void OpenUART(void)
 {
   P0_5 = 1;               // Turn on regulator of color sensor
-  HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+  HalLedSet( HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
   //HalUARTInit();        // Init UART on DMA1
   //NPI_InitTransport(cSerialPacketParser);
 }
@@ -1157,7 +1187,7 @@ void OpenUART(void)
 void CloseUART(void)
 {
   P0_5 = 0;               // Turn off regulator of color sensor
-  HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+  HalLedSet( HAL_LED_1 | HAL_LED_2 | HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
   counter = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
@@ -1172,4 +1202,5 @@ void initialParameter(void){
   eepResult = false;
   globalState = 1;
   clrCnt = 0;
+  disconnectCnt = 0;
 }
