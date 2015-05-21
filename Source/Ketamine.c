@@ -163,7 +163,7 @@ static gaprole_States_t gapProfileState = GAPROLE_INIT;
 static uint8 scanRspData[] =
 {
   // complete name
-  0x0d,   // length of this data
+  0x08,   // length of this data
   GAP_ADTYPE_LOCAL_NAME_COMPLETE, /*
   0x53,   // 'S'
   0x69,   // 'i'
@@ -184,18 +184,13 @@ static uint8 scanRspData[] =
   0x72,   // 'r'
   0x61,   // 'a'
   0x6c,   // 'l'  */
-  0x4b,   // 'K'
+  0x6b,   // 'k'
   0x65,   // 'e'
   0x74,   // 't'
-  0x44,   // 'D'
-  0x69,   // 'i'
-  0x61,   // 'a'
-  0x72,   // 'r'
-  0x79,   // 'y'
-  0x2d,   // '-'
+  0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x31,   // '0'
+  0x30,   // '0'
 
   // connection interval range
   0x05,   // length of this data
@@ -412,12 +407,9 @@ void Ketamine_Init( uint8 task_id )
 
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
   P0SEL = 0;
-  P0DIR = 0xFF;
-  P0 = 0;
+  P0DIR = 0xBE;
+  P0 = 0x41;
   
-  //P0SEL &= ~0x38;
-  //P0DIR = 0x38;
-  //P0 = 0;
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
@@ -530,8 +522,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       }
    
       P0SEL = 0;
-      P0DIR = 0xFF;
-      P0 = 0;
+      P0DIR |= 0x18;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
       if(advCount >= advMax){
@@ -896,17 +887,17 @@ static void performPeriodicTask( void )
   case 1:
     //if(eepResult == TRUE )
     //  sendReadBuf(&noti, buf, 6, 0xFB);
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(500);
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
     
     initialParameter();
     break;
     
   case 2:
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(500);
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
