@@ -189,8 +189,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '0'
-  0x30,   // '0'
+  0x31,   // '0'
+  0x31,   // '0'
 
   // connection interval range
   0x05,   // length of this data
@@ -521,8 +521,8 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ KTM_PERIODIC_EVT);
       }
    
-      P0SEL = 0;
-      P0DIR |= 0x18;
+      //P0SEL = 0;
+      //P0DIR |= 0x18;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
       if(advCount >= advMax){
@@ -900,7 +900,7 @@ static void performPeriodicTask( void )
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
-    uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
+    uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_8);
     buf[0] = adcvalue & 0xFF;
     buf[1] = (adcvalue >> 8) & 0xFF;
     //buf[1] = sendAckMessage(buf[0]);
@@ -922,7 +922,7 @@ static void performPeriodicTask( void )
   case 3:
     P0SEL &= ~0x38;
     P0DIR |= 0x38;
-    P0_5 = 1;
+    P1_2 = 1;
     
     if(clrCnt == 0){
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
@@ -1050,7 +1050,7 @@ void readColorAfterDelay(uint8 state){
     notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
     clrCnt = 1;
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
-    P0_5 = 0;
+    P1_2 = 0;
     
     eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
     if(eepResult == TRUE ){
@@ -1075,7 +1075,7 @@ void readColorAfterDelay(uint8 state){
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
     GATT_Notification(0, &notiColor, FALSE);
     clrCnt = 0;
-    P0_5 = 0;
+    P1_2 = 0;
   }
 }
 

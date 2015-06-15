@@ -1,4 +1,4 @@
-#include <TCS3414CS.h>
+#include "TCS3414CS.h"
 
 void HalColorInit(uint8 addr){
     setTimingReg(addr, INTEG_MODE_FREE);//Set trigger mode.Including free mode,manually mode,single synchronizition mode or so.
