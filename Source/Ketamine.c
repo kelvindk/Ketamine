@@ -190,7 +190,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x31,   // '0'
-  0x31,   // '0'
+  0x30,   // '0'
 
   // connection interval range
   0x05,   // length of this data
@@ -407,8 +407,8 @@ void Ketamine_Init( uint8 task_id )
 
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
   P0SEL = 0;
-  P0DIR = 0xBE;
-  P0 = 0x41;
+  P0DIR = 0xDE;
+  P0 = 0x21;
   
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
@@ -836,8 +836,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 unsigned int counter =  0;
 uint8 buf[20];
 bool eepResult = false;
-uint16 firstThres = 20;
-uint16 secondThres = 15;
+uint16 firstThres = 75;
+uint16 secondThres = 60;
 bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
 attHandleValueNoti_t noti; 
@@ -920,8 +920,8 @@ static void performPeriodicTask( void )
     break;
     
   case 3:
-    P0SEL &= ~0x38;
-    P0DIR |= 0x38;
+    //P0SEL &= ~0x38;
+    //P0DIR |= 0x38;
     P1_2 = 1;
     
     if(clrCnt == 0){
