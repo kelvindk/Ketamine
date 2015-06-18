@@ -41,6 +41,8 @@
  * INCLUDES
  */
 
+#include <stdio.h>
+
 #include "bcomdef.h"
 #include "OSAL.h"
 #include "OSAL_PwrMgr.h"
@@ -189,8 +191,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x31,   // '0'
   0x30,   // '0'
+  0x31,   // '1'
 
   // connection interval range
   0x05,   // length of this data
@@ -409,6 +411,10 @@ void Ketamine_Init( uint8 task_id )
   P0SEL = 0;
   P0DIR = 0xDE;
   P0 = 0x21;
+  
+  P1SEL = 0x3C;
+  P1DIR = 0xE7;
+  P1 = 0x3C;
   
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
@@ -888,7 +894,7 @@ static void performPeriodicTask( void )
     //if(eepResult == TRUE )
     //  sendReadBuf(&noti, buf, 6, 0xFB);
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(500);
+    ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
     
     initialParameter();
@@ -896,7 +902,7 @@ static void performPeriodicTask( void )
     
   case 2:
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(500);
+    ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
@@ -1031,6 +1037,23 @@ static void performPeriodicTask( void )
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
     break;
+    
+  case 6:
+    HalUARTInit(); 
+    NPI_InitTransport(cSerialPacketParser);
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1000);
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+    
+    buf[0] = globalCount & 0xFF;
+    buf[1] = (globalCount >> 8) & 0xFF;
+    buf[2] = HalUARTWrite(NPI_UART_PORT, (uint8*)buf, 2);
+    sendReadBuf(&noti, buf, 3, 0xAA);
+    
+    HalUARTClose(NPI_UART_PORT);   // Turn off UART on P1_4 and p1_5
+    //ST_HAL_DELAY(1000);
+    
+    break;  
   default:
     break;
   }
@@ -1097,9 +1120,11 @@ static void simpleProfileChangeCB( uint8 paramID )
     case SIMPLEPROFILE_CHAR1:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
       globalState = newValue;
+      
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+      
       #if (defined HAL_LCD) && (HAL_LCD == TRUE)
         HalLcdWriteStringValue( "Char 1:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
       #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -1162,10 +1187,11 @@ char *bdAddr2Str( uint8 *pAddr )
  */
 void OpenUART(void)
 {
-  P0_5 = 1;               // Turn on regulator of color sensor
+  //P1_2 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
   //HalUARTInit();        // Init UART on DMA1
   //NPI_InitTransport(cSerialPacketParser);
+  //printf(".");
 }
 
 /*********************************************************************
@@ -1177,7 +1203,7 @@ void OpenUART(void)
  */
 void CloseUART(void)
 {
-  P0_5 = 0;               // Turn off regulator of color sensor
+  //P1_2 = 0;               // Turn off regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2 | HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
   counter = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5

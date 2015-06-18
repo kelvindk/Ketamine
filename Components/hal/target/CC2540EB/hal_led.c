@@ -114,6 +114,8 @@ void HalLedInit (void)
   // Set LED GPIOs to outputs.
   LED1_DDR |= LED1_BV;
   LED2_DDR |= LED2_BV;
+  LED3_DDR |= LED3_BV;
+  LED4_DDR |= LED4_BV;
   
 #if defined BLINK_LEDS
   HalLedStatusControl.sleepActive = FALSE;  // Initialize sleepActive to FALSE.

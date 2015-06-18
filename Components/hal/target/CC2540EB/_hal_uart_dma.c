@@ -27,7 +27,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED “AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -98,13 +98,13 @@
 #undef UTXxIE
 #undef UTXxIF
 #if    (HAL_UART_DMA == 1)
-#define UxCSR                      U1CSR
-#define UxUCR                      U1UCR
-#define UxDBUF                     U1DBUF
-#define UxBAUD                     U1BAUD
-#define UxGCR                      U1GCR
-#define UTXxIE                     UTX1IE
-#define UTXxIF                     UTX1IF
+#define UxCSR                      U0CSR
+#define UxUCR                      U0UCR
+#define UxDBUF                     U0DBUF
+#define UxBAUD                     U0BAUD
+#define UxGCR                      U0GCR
+#define UTXxIE                     UTX0IE
+#define UTXxIF                     UTX0IF
 #elif  (HAL_UART_DMA == 2)
 #define UxCSR                      U1CSR
 #define UxUCR                      U1UCR
@@ -123,7 +123,7 @@
 #undef  HAL_UART_Px_SEL
 #if    (HAL_UART_DMA == 1)
 #define PxSEL                      P1SEL
-#define HAL_UART_PERCFG_BIT        0x02         // USART0 on P0, Alt-1; so clear this bit.
+#define HAL_UART_PERCFG_BIT        0x01         // USART0 on P0, Alt-1; so clear this bit.
 #define HAL_UART_PRIPO             0x00         // USART0 priority over UART1.
 #define HAL_UART_Px_CTS            0x10         // Peripheral I/O Select for CTS flow control.
 #define HAL_UART_Px_RTS            0x20         // Peripheral I/O Select for RTS must be manual.
@@ -142,10 +142,10 @@
 #undef  DMATRIG_RX
 #undef  DMATRIG_TX
 #if    (HAL_UART_DMA == 1)
-#define DMA_PAD                    U1BAUD
-#define DMA_UxDBUF                 HAL_DMA_U1DBUF
-#define DMATRIG_RX                 HAL_DMA_TRIG_URX1
-#define DMATRIG_TX                 HAL_DMA_TRIG_UTX1
+#define DMA_PAD                    U0BAUD
+#define DMA_UxDBUF                 HAL_DMA_U0DBUF
+#define DMATRIG_RX                 HAL_DMA_TRIG_URX0
+#define DMATRIG_TX                 HAL_DMA_TRIG_UTX0
 #elif  (HAL_UART_DMA == 2)
 #define DMA_PAD                    U1BAUD
 #define DMA_UxDBUF                 HAL_DMA_U1DBUF
@@ -165,12 +165,12 @@
 #define PxIEN                      P1IEN
 #define PxIFG                      P1IFG
 #define PxIF                       P1IF
-#define DMA_RDYIn                  P1_4
-#define DMA_RDYOut                 P1_5
-#define DMA_RDYIn_BIT              BV(4)        // Same as the I/O Select for CTS flow control.
-#define DMA_RDYOut_BIT             BV(5)        // Same as the I/O Select for manual RTS flow ctrl.
+#define DMA_RDYIn                  P1_2
+#define DMA_RDYOut                 P1_3
+#define DMA_RDYIn_BIT              BV(2)        // Same as the I/O Select for CTS flow control.
+#define DMA_RDYOut_BIT             BV(3)        // Same as the I/O Select for manual RTS flow ctrl.
 // Falling edge ISR on P0 pins.
-#define PICTL_BIT                  BV(2)
+#define PICTL_BIT                  BV(1)
 #define IENx                       IEN2
 #define IEN_BIT                    BV(4)
 #elif  (HAL_UART_DMA == 2)
@@ -371,7 +371,7 @@ static void HalUARTInitDMA(void)
 {
   halDMADesc_t *ch;
 #if (HAL_UART_DMA == 1)
-  PERCFG = (PERCFG & ~0x01) | 0x01;  //Set UART0 I/O to Alt. 2 location on P1
+  PERCFG |= HAL_UART_PERCFG_BIT;     //Set UART0 I/O to Alt. 2 location on P1
   //PERCFG &= ~HAL_UART_PERCFG_BIT;    // Set UART0 I/O to Alt. 1 location on P0.
 #else
   PERCFG |= HAL_UART_PERCFG_BIT;     // Set UART1 I/O to Alt. 2 location on P1.
