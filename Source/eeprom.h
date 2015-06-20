@@ -1,5 +1,5 @@
-#include <hal_i2c.h>
-#include <hal_sensor.h>
+#include "hal_i2c.h"
+#include "hal_sensor.h"
 
 #define EEPROM_ADDR 0x50
 

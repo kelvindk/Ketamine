@@ -3,6 +3,7 @@
 #include "Ketamine.h"
 #include "bcomdef.h"
 #include "hal_led.h"
+#include "hal_sensor.h"
 #include "hal_i2c.h"
 
 #include "string.h"
@@ -18,25 +19,21 @@ uint8 serialInterface_TaskID;   // Task ID for internal task/event processing
 #define SERIAL_ACK                 0xA5 //inidicate an ACK
 #define SERIAL_DATA                0xAD //indiciate data from central device
 
-#define RX_BUFF_BIO_SIZE    50
-#define RX_BUFF_ECG_SIZE    10
-
-
-uint8 pktBuf[RX_BUFF_BIO_SIZE];
+uint8 pktBuf[RX_BUFF_SIZE];
 uint8 preamble = FALSE; // preamble includes FF, 7F, Type
 uint8 pktLength = 0; // target packet length
 uint8 pktRxByteOffset = 0; // current received bytes offset
 uint8 numBytes;
 uint8 RxByte;
 uint8 pktSeq = 0;
-uint8 ecgPktBuf[RX_BUFF_BIO_SIZE];
-uint8 accBuf[1];
-uint8 tempBuf[2];
-uint8 ecgBufOffset = 1;
-uint8 accReady = FALSE;
-uint8 tempReady = FALSE;
 
-//static uint8 temp_buf[48];
+uint8 cameraAddr = (CAM_ADDR << 5);  	// addr
+uint16 picTotalLen = 0;            	// picture length
+uint16 pktCnt = 0;
+uint16 tmpPktIdx = 0;
+uint16 lastPktLen = 0;
+uint16 seqNum = 0;
+uint8 bleAck = 0;
 
 void SerialInterface_Init( uint8 task_id )
 {
@@ -79,116 +76,134 @@ static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg )
   }
 }
 
-
-// void serialPacketHandler() {
-// //  sendAckMessage(pktBuf[1]);
-//   ecgPktBuf[ecgBufOffset] = pktBuf[2];
-//   ecgPktBuf[++ecgBufOffset] = pktBuf[3];
-//   ecgBufOffset++;
-//   switch(pktBuf[0]) {
-//   case 1: //ECG beat
-//     if(ecgBufOffset >= RX_BUFF_ECG_SIZE) {
-//       
-//       if(accReady) {
-//         accReady = FALSE;
-//         ecgPktBuf[0] = 2;
-//         sendNotification((uint8 *)&ecgPktBuf, 17);
-//         sendAckMessage(sendNotification((uint8 *)&ecgPktBuf, 17));
-// //        sendAckMessage(1);
-//       }
-//       else if(tempReady) {
-//         tempReady = FALSE;
-//         ecgPktBuf[0] = 3;
-//         ecgPktBuf[11] = tempBuf[0];
-//         ecgPktBuf[12] = tempBuf[1];
-// //        txPktBuf
-//         sendNotification((uint8 *)&ecgPktBuf, 13);
-//         sendAckMessage(sendNotification((uint8 *)&ecgPktBuf, 13));
-// //        sendAckMessage(2);
-//       }
-//       else { // only ECG
-//         ecgPktBuf[0] = 1;
-//         sendNotification((uint8 *)&ecgPktBuf, 11);
-//         sendAckMessage(sendNotification((uint8 *)&ecgPktBuf, 11));
-//         ecgBufOffset = 1;
-// //        sendAckMessage(3);
-//       }
-//     }
-// //    else
-// //      sendAckMessage(0);
-// 
-//     break;
-//   case 2: //ACC
-//     accBuf[0] = pktBuf[4];
-//     accReady = TRUE;
-//     break;
-//   case 3: //Temp
-//     tempBuf[0] = pktBuf[4];
-//     tempBuf[1] = pktBuf[5];
-//     tempReady = TRUE;
-//     break;
-//   }
-// }
-
-
 void cSerialPacketParser( uint8 port, uint8 events )
-{  
-  if((preamble) ) {
-    if(pktRxByteOffset != 0) {
-      numBytes = NPI_RxBufLen();
-      if(numBytes < pktRxByteOffset) {
-        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), numBytes);
-        pktRxByteOffset -= numBytes;
-        return;
-      }
-      else {
-        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), pktRxByteOffset);
-        pktRxByteOffset = 0;
-      }
-    }
-    if(pktRxByteOffset == 0) {
-      //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-      // got sufficient bytes in a packet
-//      serialPacketHandler();
-      (void)sendNotification((uint8 *)&pktBuf, pktLength+1);
-      preamble = FALSE;
+{
+  numBytes = NPI_RxBufLen();
+  if(serialCameraState == 8){
+    //if(numBytes < PIC_PKT_LEN && isLastPkt == false)
+    if(numBytes < PIC_PKT_LEN)
       return;
+    else{
+      NPI_ReadTransport(pktBuf, numBytes);
     }
   }
-  
-  numBytes = NPI_RxBufLen();
-   
-  if(numBytes < 3)
-    return;
-   
-//   HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-   (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-   if(RxByte != 0xFF)
-     return;
-   else{
-     (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-     if(RxByte != 0x7F)
-       return;
-     else { // Then handle the packet depending on type
-              
-       (void)NPI_ReadTransport((uint8 *)&pktBuf, 1);
-       preamble = TRUE;
-       switch(pktBuf[0]) {
-        case 1: //ECG beat
-          pktRxByteOffset = 1;
+  else{
+    if(numBytes < 6)
+      return;
+    NPI_ReadTransport(pktBuf, 6);
+    //pktBuf[6] = numBytes;
+    //sendNotification(pktBuf, 7);
+    switch (serialCameraState){
+    case 0:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x0d && pktBuf[4] == 0 && pktBuf[5] == 0){
+        
+        ST_HAL_DELAY(1250);
+        
+        if( NPI_ReadTransport(pktBuf, 6) != 6)
           break;
-        case 2: //ACC
-          pktRxByteOffset = 1;
-          break;
-        case 3: //Temp
-          pktRxByteOffset = 2;
-          break;
-        default:
-          preamble = FALSE;
-       }
-       pktLength = pktRxByteOffset;
-     }
-   }
+        
+        if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0d | cameraAddr) && pktBuf[2] == 0x00 && pktBuf[3] == 0 && pktBuf[4] == 0 && pktBuf[5] == 0){
+          uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
+          cmd[1] = 0x0e | cameraAddr;
+          cmd[2] = 0x0d;
+          sendCmd(cmd, 6);
+          serialCameraState = 0x10;
+        }
+      }
+      break;
+    }
+    case 0x10:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x01 && pktBuf[4] == 0 && pktBuf[5] == 0)
+        serialCameraState = 0x20;
+      break;
+    }
+    case 0x20:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x06 && pktBuf[4] == 0 && pktBuf[5] == 0)
+        serialCameraState = 0x21;
+      break;
+    }
+    case 0x21:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x05 && pktBuf[4] == 0 && pktBuf[5] == 0)
+        serialCameraState = 0x22;
+      break;
+    }
+    case 0x22:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x04 && pktBuf[4] == 0 && pktBuf[5] == 0)
+        serialCameraState = 0x23;
+      break;
+    }
+    case 0x23:{
+      if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
+        picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
+        pktCnt = (picTotalLen) / (PIC_PKT_LEN - 6);
+        if ((picTotalLen % (PIC_PKT_LEN-6)) != 0){
+          pktCnt += 1;
+          lastPktLen =  picTotalLen % (PIC_PKT_LEN-6);
+        }
+        serialCameraState = 0x30;
+      }
+    }
+    case 0x30:{
+      break;
+    }
+    }
+  }
+//  if((preamble) ) {
+//    if(pktRxByteOffset != 0) {
+//      numBytes = NPI_RxBufLen();
+//      if(numBytes < pktRxByteOffset) {
+//        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), numBytes);
+//        pktRxByteOffset -= numBytes;
+//        return;
+//      }
+//      else {
+//        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), pktRxByteOffset);
+//        pktRxByteOffset = 0;
+//      }
+//    }
+//    if(pktRxByteOffset == 0) {
+//      //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
+//      // got sufficient bytes in a packet
+////      serialPacketHandler();
+//      (void)sendNotification((uint8 *)&pktBuf, pktLength+1);
+//      preamble = FALSE;
+//      return;
+//    }
+//  }
+//  
+//  numBytes = NPI_RxBufLen();
+//   
+//  if(numBytes < 3)
+//    return;
+//   
+////   HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
+//   (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
+//   if(RxByte != 0xFF)
+//     return;
+//   else{
+//     (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
+//     if(RxByte != 0x7F)
+//       return;
+//     else { // Then handle the packet depending on type
+//              
+//       (void)NPI_ReadTransport((uint8 *)&pktBuf, 1);
+//       preamble = TRUE;
+//       switch(pktBuf[0]) {
+//        case 1: //ECG beat
+//          pktRxByteOffset = 1;
+//          break;
+//        case 2: //ACC
+//          pktRxByteOffset = 1;
+//          break;
+//        case 3: //Temp
+//          pktRxByteOffset = 2;
+//          break;
+//        default:
+//          preamble = FALSE;
+//       }
+//       pktLength = pktRxByteOffset;
+//     }
+//   }
 }
 
 uint8 sendNotification(uint8* bytes_sent, uint8 len)
@@ -254,8 +269,36 @@ uint16 circular_add(uint16 x, uint16 y)
   return sum;
 }
 
-void HalTmpSelect(void)
+void clearRxBuf()
 {
-  //Set up I2C that is used to communicate with TMP102
-  HalI2CInit(TMP102_ADDRESS, i2cClock_267KHZ);
+  uint8 tempBuf;
+  while (Hal_UART_RxBufLen(NPI_UART_PORT))
+  {
+    HalUARTRead(NPI_UART_PORT, &tempBuf, 1);
+  }
+}
+
+void sendCmd(uint8* cmd, int cmd_len)
+{
+  HalUARTWrite(NPI_UART_PORT, (uint8*)cmd, cmd_len);
+}
+
+void notifyPicInfo(void){
+  uint8 tempBuf[20];
+  uint8 i;
+  for(i = 0; i < 20; i++){
+    tempBuf[i] = 0;
+  }
+  tempBuf[0] = 0xAA;
+  tempBuf[1] = seqNum & 0xFF;
+  tempBuf[2] = (seqNum >> 8) & 0xFF;
+  tempBuf[1] = picTotalLen & 0xFF;
+  tempBuf[2] = (picTotalLen >> 8) & 0xFF;
+  uint8 sum = 0;
+  for(i = 0; i < 19; i++){
+    sum += tempBuf[i];
+  }
+  tempBuf[19] = sum;
+  sendNotification(tempBuf, 20);
+  
 }

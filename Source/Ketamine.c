@@ -96,10 +96,10 @@
  */
 
 // How often to perform periodic event
-//#define KTM_PERIODIC_EVT_PERIOD                   100
-#define KTM_BROADCAST_EVT_PERIOD                   500
-#define KTM_PERIODIC_EVT_PERIOD                   1000
-#define KTM_COLORDELAY_PERIOD                       30
+#define KTM_BROADCAST_EVT_PERIOD                        500
+#define KTM_PERIODIC_EVT_PERIOD                         1000
+#define KTM_COLORDELAY_PERIOD                           30
+#define KTM_SENDDATA_PERIOD                             7
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -239,6 +239,13 @@ static uint8 somedata1[] =
   0x03,   // 'p'
   0x04,   // 'l'
   0x05,   // 'e'
+};
+
+uint8 dummy[] = 
+{
+  0xFF,
+  0xFF,
+  0xFF,
 };
 
 static uint8 globalState = 1;
@@ -527,10 +534,13 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ KTM_PERIODIC_EVT);
       }
    
-      //P0SEL = 0;
-      //P0DIR |= 0x18;
+      P1SEL &= ~0x03;
+      P1DIR |= 0x03;
       advCount = advCount + 1;
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_TOGGLE );
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+      
       if(advCount >= advMax){
         HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
         advCount = 0;
@@ -580,6 +590,9 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   if ( events & KTM_COLORDELAY_EVT ){
     readColorAfterDelay(clrCnt);
     return (events ^ KTM_COLORDELAY_EVT);
+  }
+  if ( events & KTM_SENDDATA_EVT ){
+    return (events ^ KTM_SENDDATA_EVT);
   }
 
   // Discard unknown events
@@ -848,6 +861,8 @@ bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
 attHandleValueNoti_t noti; 
 attHandleValueNoti_t notiColor;
+uint8 waitOne = 0;
+uint8 serialCameraState = 0;
 
 
 static void performPeriodicTask( void )
@@ -859,7 +874,7 @@ static void performPeriodicTask( void )
   
   counter++;
   globalCount++;
-  //writeTestPaperId(somedata1, 5);
+//  writeTestPaperId(somedata1, 5);
   
 //  if(globalCount > globalMax){
 //    // Terminate after globalState is not changed for 10 min.
@@ -891,8 +906,7 @@ static void performPeriodicTask( void )
   
   switch (globalState){
   case 1:
-    //if(eepResult == TRUE )
-    //  sendReadBuf(&noti, buf, 6, 0xFB);
+
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
@@ -909,7 +923,6 @@ static void performPeriodicTask( void )
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_8);
     buf[0] = adcvalue & 0xFF;
     buf[1] = (adcvalue >> 8) & 0xFF;
-    //buf[1] = sendAckMessage(buf[0]);
     if(isSecondSaliva == FALSE){
       if(isfirstSaliva == FALSE){
         sendReadBuf(&noti, buf, 2, 0xFC);
@@ -949,69 +962,6 @@ static void performPeriodicTask( void )
       setReadReg(COLOR_SENSOR_ADDR2);
       osal_start_timerEx( Ketamine_TaskID, KTM_COLORDELAY_EVT, KTM_COLORDELAY_PERIOD );
     }
-    /*
-    if( clrCnt < 2 ){
-      if(clrCnt == 0){
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-        ST_HAL_DELAY(1250);
-        notiColor.handle = 0x2E;  
-        notiColor.len = 17;
-        for(i = 0; i < 17; i++){
-          notiColor.value[i] = 0;
-        }
-        HalColorInit(COLOR_SENSOR_ADDR); //0x39
-        setReadReg(COLOR_SENSOR_ADDR);
-        clrCnt = 1;
-      }
-      else if(clrCnt == 1){
-        struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-        notiColor.value[0] = 0xFF;
-        notiColor.value[1] = rgbc.red & 0xFF;
-        notiColor.value[2] = (rgbc.red >> 8) & 0xFF;
-        notiColor.value[3] = rgbc.green & 0xFF;
-        notiColor.value[4] = (rgbc.green >> 8) & 0xFF;
-        notiColor.value[5] = rgbc.blue & 0xFF;
-        notiColor.value[6] = (rgbc.blue >> 8) & 0xFF;
-        notiColor.value[7] = rgbc.clear & 0xFF;
-        notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
-        //HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
-        clrCnt = 2;
-        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
-        P0_5 = 0;
-        
-        eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-        if(eepResult == TRUE )
-          sendReadBuf(&noti, buf, 5, 0xFB);
-        else
-          sendReadBuf(&noti, buf, 0, 0xFA);
-      }
-    }
-    else{
-      if(clrCnt == 2){
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-        ST_HAL_DELAY(1250);
-        HalColorInit(COLOR_SENSOR_ADDR2);
-        setReadReg(COLOR_SENSOR_ADDR2);
-        //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );     //  (1) larry
-        clrCnt = 3;
-      }
-      else if (clrCnt == 3){
-        struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-        notiColor.value[9] = rgbc2.red & 0xFF;
-        notiColor.value[10] = (rgbc2.red >> 8) & 0xFF;
-        notiColor.value[11] = rgbc2.green & 0xFF;
-        notiColor.value[12] = (rgbc2.green >> 8) & 0xFF;
-        notiColor.value[13] = rgbc2.blue & 0xFF;
-        notiColor.value[14] = (rgbc2.blue >> 8) & 0xFF;
-        notiColor.value[15] = rgbc2.clear & 0xFF;
-        notiColor.value[16] = (rgbc2.clear >> 8) & 0xFF;
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
-        GATT_Notification(0, &notiColor, FALSE);
-        clrCnt = 0;
-        P0_5 = 0;
-      }
-    }
-    */
     break;
     
   case 4:
@@ -1041,16 +991,83 @@ static void performPeriodicTask( void )
   case 6:
     HalUARTInit(); 
     NPI_InitTransport(cSerialPacketParser);
-    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1000);
-    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+    ST_HAL_DELAY(125);
     
-    buf[0] = globalCount & 0xFF;
-    buf[1] = (globalCount >> 8) & 0xFF;
-    buf[2] = HalUARTWrite(NPI_UART_PORT, (uint8*)buf, 2);
-    sendReadBuf(&noti, buf, 3, 0xAA);
+    switch (serialCameraState){
+    case 0:{
+//      if(waitOne == 0){
+        uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
+        clearRxBuf();
+        sendCmd(cmd, 6);
+        HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+        ST_HAL_DELAY(1000);
+        HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
+//        waitOne++;
+//      }
+//      else{
+//        waitOne++;
+//        waitOne %= 5;
+//      }
+      break;
+    }
+    case 0x10:{
+      uint8 cmd[] = { 0xaa, 0x01 | cameraAddr, 0x00, 0x07, 0x00, PIC_FMT };
+      clearRxBuf();
+      sendCmd(cmd, 6);
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
+      break;
+    }
+    case 0x20:{
+      uint8 cmd[] = { 0xaa, 0x06 | cameraAddr, 0x08, PIC_PKT_LEN & 0xff, (PIC_PKT_LEN>>8) & 0xff ,0};
+      clearRxBuf();
+      sendCmd(cmd, 6);
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
+      break;
+    }
+    case 0x21:{
+      uint8 cmd[] = { 0xaa, 0x05 | cameraAddr, 0, 0, 0, 0};
+      clearRxBuf();
+      sendCmd(cmd, 6);
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
+      break;
+    }
+    case 0x22:{
+      uint8 cmd[] = { 0xaa, 0x04 | cameraAddr, 0x1, 0, 0, 0};
+      clearRxBuf();
+      sendCmd(cmd, 6);
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
+      break;
+    }
+    case 0x23:{
+      break;
+    }
+    case 0x30:{
+      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+      break;
+    }
+    }
     
-    HalUARTClose(NPI_UART_PORT);   // Turn off UART on P1_4 and p1_5
+//    clearRxBuf();
+//    buf[0] = globalCount & 0xFF;
+//    buf[1] = (globalCount >> 8) & 0xFF;
+//    buf[2] = HalUARTWrite(NPI_UART_PORT, (uint8*)buf, 2);
+//    buf[0] = 0;
+//    buf[1] = 0;
+//    ST_HAL_DELAY(1000);
+//    HalUARTRead(NPI_UART_PORT, buf, 3);
+//    sendReadBuf(&noti, buf, 3, 0xAA);
+
+    HalUARTSuspend();
     //ST_HAL_DELAY(1000);
     
     break;  
@@ -1124,19 +1141,11 @@ static void simpleProfileChangeCB( uint8 paramID )
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
-      
-      #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-        HalLcdWriteStringValue( "Char 1:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
-      #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
       break;
 
     case SIMPLEPROFILE_CHAR3:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
-
-      #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-        HalLcdWriteStringValue( "Char 3:", (uint16)(newValue), 10,  HAL_LCD_LINE_3 );
-      #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
       break;
 

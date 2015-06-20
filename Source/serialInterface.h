@@ -5,8 +5,12 @@
 #define MAX_PKT_SIZE    128
 #define RX_BUFF_SIZE    500
 
-#define TMP102_ADDRESS             0x49
-#define REG_READ_TMP102            0x00
+#define PIC_PKT_LEN    128					//data length of each read, dont set this too big because ram is limited
+#define PIC_FMT_VGA    5
+#define PIC_FMT_CIF    5
+#define PIC_FMT_OCIF   3
+#define CAM_ADDR       0
+#define PIC_FMT        PIC_FMT_VGA
 
 //===================================================
 
@@ -22,7 +26,7 @@ typedef enum {
 void cSerialPacketParser(uint8 port, uint8 events);
 void parseCmd(void);
 void sendSerialEvt(void);
-
+void notifyPicInfo(void);
 
 /**********************************************************************
  * MACROS
@@ -32,6 +36,8 @@ void sendSerialEvt(void);
 
 extern uint16 serialBufferOffset;
 extern uint8 serialBuffer[RX_BUFF_SIZE];
+extern uint8 cameraAddr;
+extern uint8 bleAck;
 
 /*********************************************************************
  * FUNCTIONS
@@ -41,7 +47,6 @@ extern uint8 serialBuffer[RX_BUFF_SIZE];
  * Task Initialization for the BLE Application
  */
 extern void SerialInterface_Init( uint8 task_id );
-extern void HalTmpSelect(void);
 
 /*
  * Task Event Processor for the BLE Application
@@ -53,3 +58,5 @@ extern uint8 sendAckMessage(uint8 bytes_sent);
 extern uint8 sendDataToHost(uint8* data, uint8 len);  
 extern uint16 circular_add(uint16 x, uint16 y);
 extern uint16 circular_diff(uint16 offset, uint16 tail);
+extern void clearRxBuf(void);
+extern void sendCmd(uint8* cmd, int cmd_len);

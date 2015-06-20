@@ -58,6 +58,7 @@ extern "C"
 #define KTM_START_DEVICE_EVT                              0x0001
 #define KTM_PERIODIC_EVT                                  0x0002
 #define KTM_COLORDELAY_EVT                                0x0004
+#define KTM_SENDDATA_EVT                                  0x0008
 
    
 // State of ketamine process ID
@@ -72,11 +73,10 @@ extern "C"
 /*********************************************************************
  * FUNCTIONS
  */
-   
-   
+  
 extern void OpenUART(void);
 extern void CloseUART(void);
-
+extern uint8 serialCameraState;
 /*
  * Task Initialization for the BLE Application
  */
