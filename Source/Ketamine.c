@@ -97,7 +97,8 @@
 
 // How often to perform periodic event
 #define KTM_BROADCAST_EVT_PERIOD                        500
-#define KTM_PERIODIC_EVT_PERIOD                         1000
+#define KTM_PERIODIC_EVT_PERIOD                         500
+#define KTM_ACQUIRE_PIC_PICTURE                         100
 #define KTM_COLORDELAY_PERIOD                           30
 #define KTM_SENDDATA_PERIOD                             7
 
@@ -166,26 +167,7 @@ static uint8 scanRspData[] =
 {
   // complete name
   0x08,   // length of this data
-  GAP_ADTYPE_LOCAL_NAME_COMPLETE, /*
-  0x53,   // 'S'
-  0x69,   // 'i'
-  0x6d,   // 'm'
-  0x70,   // 'p'
-  0x6c,   // 'l'
-  0x65,   // 'e'
-  0x42,   // 'B'
-  0x4c,   // 'L'
-  0x45,   // 'E'
-  0x50,   // 'P'
-  0x65,   // 'e'
-  0x72,   // 'r'
-  0x69,   // 'i'
-  0x70,   // 'p'
-  0x68,   // 'h'
-  0x65,   // 'e'
-  0x72,   // 'r'
-  0x61,   // 'a'
-  0x6c,   // 'l'  */
+  GAP_ADTYPE_LOCAL_NAME_COMPLETE,
   0x6b,   // 'k'
   0x65,   // 'e'
   0x74,   // 't'
@@ -248,7 +230,7 @@ uint8 dummy[] =
   0xFF,
 };
 
-static uint8 globalState = 1;
+uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
 int advMax = 600;
@@ -514,6 +496,8 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     VOID GAPBondMgr_Register( &Ketamine_BondMgrCBs );
     
     osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
+    
+    HalLedSet( HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
 
     return ( events ^ KTM_START_DEVICE_EVT );
   }
@@ -747,13 +731,10 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;
 
     case GAPROLE_CONNECTED:
-      {        
+      {
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          
-
-          OpenUART();
 //          HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
           // Set timer for first periodic event
           // osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, 4000 );
@@ -781,8 +762,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;      
     case GAPROLE_WAITING:
       {
-        CloseUART();
-        
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Disconnected",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -791,9 +770,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_WAITING_AFTER_TIMEOUT:
       {
-        // Close Pic32 & UART
-        CloseUART();
-        
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Timed Out",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -806,10 +782,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;
 
     case GAPROLE_ERROR:
-      {
-        // Close Pic32 & UART
-        CloseUART();
-        
+      { 
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Error",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
@@ -852,7 +825,6 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
  */    
 
 /*Variables for application control*/
-unsigned int counter =  0;
 uint8 buf[20];
 bool eepResult = false;
 uint16 firstThres = 75;
@@ -861,7 +833,7 @@ bool isfirstSaliva = FALSE;
 bool isSecondSaliva = FALSE;
 attHandleValueNoti_t noti; 
 attHandleValueNoti_t notiColor;
-uint8 waitOne = 0;
+uint8 waitCamera = 0;
 uint8 serialCameraState = 0;
 
 
@@ -872,7 +844,6 @@ static void performPeriodicTask( void )
     buf[i] = 0;
   }
   
-  counter++;
   globalCount++;
 //  writeTestPaperId(somedata1, 5);
   
@@ -988,26 +959,19 @@ static void performPeriodicTask( void )
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
     break;
     
-  case 6:
+  case 6:{
     HalUARTInit(); 
     NPI_InitTransport(cSerialPacketParser);
     ST_HAL_DELAY(125);
     
     switch (serialCameraState){
     case 0:{
-//      if(waitOne == 0){
-        uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
-        clearRxBuf();
-        sendCmd(cmd, 6);
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-        ST_HAL_DELAY(1000);
-        HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
-//        waitOne++;
-//      }
-//      else{
-//        waitOne++;
-//        waitOne %= 5;
-//      }
+      uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
+      clearRxBuf();
+      sendCmd(cmd, 6);
+      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
       break;
     }
     case 0x10:{
@@ -1047,30 +1011,77 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x23:{
+//      waitCamera++;
+//      waitCamera %= 5;
+//      uint8 num =  NPI_RxBufLen();
+//      sendNotification(&num, 1);
+//      if (num >= 6){
+//        NPI_ReadTransport(pktBuf, 6);
+//        sendNotification(pktBuf, 6);
+//        if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
+//          picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
+//          pktCnt = (picTotalLen) / (PIC_PKT_LEN - 6);
+//          if ((picTotalLen % (PIC_PKT_LEN-6)) != 0){
+//            pktCnt += 1;
+//            lastPktLen =  picTotalLen % (PIC_PKT_LEN-6);
+//          }
+//          serialCameraState = 0x30;
+//        }
+//      }
+//      if(waitCamera == 0)
+//        serialCameraState = 0x22;
+      notifyPicInfo();
+      if(waitBLEAck == 0)
+        serialCameraState = 0x30;
       break;
     }
     case 0x30:{
-      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+      
+      waitCamera++;
+      waitCamera %= 5;
+      if(waitCamera == 1){
+        if(tmpPktIdx < pktCnt){
+          uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
+          cmd[4] = tmpPktIdx & 0xff;
+          cmd[5] = (tmpPktIdx >> 8) & 0xff;
+          
+          clearRxBuf();
+          pktRxByteOffset = 0;
+          sendCmd(cmd, 6);
+        }
+      }
+      if(waitCamera == 4){
+        serialCameraState = 0x10;
+      }
+
+      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
       break;
     }
+    default:{
+    }
     }
     
-//    clearRxBuf();
-//    buf[0] = globalCount & 0xFF;
-//    buf[1] = (globalCount >> 8) & 0xFF;
-//    buf[2] = HalUARTWrite(NPI_UART_PORT, (uint8*)buf, 2);
-//    buf[0] = 0;
-//    buf[1] = 0;
-//    ST_HAL_DELAY(1000);
-//    HalUARTRead(NPI_UART_PORT, buf, 3);
-//    sendReadBuf(&noti, buf, 3, 0xAA);
 
     HalUARTSuspend();
-    //ST_HAL_DELAY(1000);
     
-    break;  
+    break;
+  }
+  case 7:{
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+    ST_HAL_DELAY(1000);
+    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+    break;
+  }
+  case 8:{
+    osal_pwrmgr_device( PWRMGR_BATTERY );
+    break;
+  }
+  case 9:{
+    osal_pwrmgr_device( PWRMGR_ALWAYS_ON );
+    break;
+  }
   default:
     break;
   }
@@ -1141,11 +1152,21 @@ static void simpleProfileChangeCB( uint8 paramID )
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+      
+      if(newValue == 6){
+        serialCameraState = 0;
+        waitCamera = 0;
+      }
 
       break;
 
     case SIMPLEPROFILE_CHAR3:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
+      waitBLEAck = newValue;
+      
+      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+      ST_HAL_DELAY(1000);
+      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
 
       break;
 
@@ -1214,7 +1235,6 @@ void CloseUART(void)
 {
   //P1_2 = 0;               // Turn off regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2 | HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
-  counter = 0;
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
 }

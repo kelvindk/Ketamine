@@ -36,8 +36,16 @@ void notifyPicInfo(void);
 
 extern uint16 serialBufferOffset;
 extern uint8 serialBuffer[RX_BUFF_SIZE];
+extern uint8 pktBuf[RX_BUFF_SIZE];
 extern uint8 cameraAddr;
 extern uint8 bleAck;
+extern uint16 picTotalLen;            	// picture length
+extern uint16 pktCnt;
+extern uint16 tmpPktIdx;
+extern uint16 lastPktLen;
+extern uint8 pktRxByteOffset;
+extern uint8 waitBLEAck;
+
 
 /*********************************************************************
  * FUNCTIONS

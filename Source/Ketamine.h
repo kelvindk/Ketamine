@@ -77,6 +77,8 @@ extern "C"
 extern void OpenUART(void);
 extern void CloseUART(void);
 extern uint8 serialCameraState;
+extern uint8 waitCamera;
+extern uint8 globalState;
 /*
  * Task Initialization for the BLE Application
  */
