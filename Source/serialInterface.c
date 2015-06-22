@@ -79,6 +79,8 @@ static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 
 void cSerialPacketParser( uint8 port, uint8 events )
 {
+  if(globalState != 6)
+    return;
   numBytes = NPI_RxBufLen();
   if(serialCameraState == 0x30){
     uint8 pktRemain ;
@@ -193,16 +195,16 @@ void cSerialPacketParser( uint8 port, uint8 events )
 //          if(i % 125 == 0)
 //            sendNotification(pktBuf, 6);
 //        }
-//        NPI_ReadTransport(pktBuf, 6);
-//        if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
-//          picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
-//          pktCnt = (picTotalLen) / (PIC_PKT_LEN - 6);
-//          if ((picTotalLen % (PIC_PKT_LEN-6)) != 0){
-//            pktCnt += 1;
-//            lastPktLen =  picTotalLen % (PIC_PKT_LEN-6);
-//          }
-//          serialCameraState = 0x30;
-//        }
+        uint8 cnt = NPI_ReadTransport(pktBuf, 6);
+        if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
+          picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
+          pktCnt = (picTotalLen) / (PIC_PKT_LEN - 6);
+          if ((picTotalLen % (PIC_PKT_LEN-6)) != 0){
+            pktCnt += 1;
+            lastPktLen =  picTotalLen % (PIC_PKT_LEN-6);
+          }
+          serialCameraState = 0x24;
+        }
         serialCameraState = 0x23;
       }
       break;
@@ -215,7 +217,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
           pktCnt += 1;
           lastPktLen =  picTotalLen % (PIC_PKT_LEN-6) + 6;
         }
-        serialCameraState = 0x23;
+        serialCameraState = 0x24;
         waitCamera = 0;
       }
       break;
@@ -352,11 +354,6 @@ uint16 circular_add(uint16 x, uint16 y)
 void clearRxBuf(void)
 {
   NPI_ReadTransport(pktBuf, NPI_UART_RX_BUF_SIZE);
-//  uint8 tempBuf;
-//  while (NPI_RxBufLen())
-//  {
-//    NPI_ReadTransport(&tempBuf, 1);
-//  }
 }
 
 void sendCmd(uint8* cmd, int cmd_len)

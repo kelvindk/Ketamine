@@ -97,7 +97,7 @@
 
 // How often to perform periodic event
 #define KTM_BROADCAST_EVT_PERIOD                        500
-#define KTM_PERIODIC_EVT_PERIOD                         500
+#define KTM_PERIODIC_EVT_PERIOD                         1000
 #define KTM_ACQUIRE_PIC_PICTURE                         100
 #define KTM_COLORDELAY_PERIOD                           30
 #define KTM_SENDDATA_PERIOD                             7
@@ -1011,6 +1011,13 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x23:{
+      waitCamera++;
+      if(waitCamera == 4){
+        serialCameraState = 0x10;
+      }
+      break;
+    }
+    case 0x24:{
 //      waitCamera++;
 //      waitCamera %= 5;
 //      uint8 num =  NPI_RxBufLen();
@@ -1030,9 +1037,10 @@ static void performPeriodicTask( void )
 //      }
 //      if(waitCamera == 0)
 //        serialCameraState = 0x22;
-      notifyPicInfo();
-      if(waitBLEAck == 0)
+      if(waitBLEAck == 5){
         serialCameraState = 0x30;
+      }
+      notifyPicInfo();
       break;
     }
     case 0x30:{
