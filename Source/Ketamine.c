@@ -1011,10 +1011,10 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x23:{
-      waitCamera++;
-      if(waitCamera == 4){
-        serialCameraState = 0x10;
-      }
+//      waitCamera++;
+//      if(waitCamera == 4){
+//        serialCameraState = 0x10;
+//      }
       break;
     }
     case 0x24:{
@@ -1039,6 +1039,7 @@ static void performPeriodicTask( void )
 //        serialCameraState = 0x22;
       if(waitBLEAck == 5){
         serialCameraState = 0x30;
+        break;
       }
       notifyPicInfo();
       break;
@@ -1077,6 +1078,7 @@ static void performPeriodicTask( void )
     break;
   }
   case 7:{
+    sendNotification(dummy, 3);
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );

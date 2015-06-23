@@ -35,6 +35,7 @@ uint16 lastPktLen = 0;
 uint8 isLastPkt = 0;
 uint16 seqNum = 0;
 uint8 waitBLEAck = 0;
+uint8 blePktOffset = 0;
 
 void SerialInterface_Init( uint8 task_id )
 {
@@ -79,8 +80,10 @@ static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 
 void cSerialPacketParser( uint8 port, uint8 events )
 {
-  if(globalState != 6)
+  if(globalState != 6){
     return;
+  }
+  
   numBytes = NPI_RxBufLen();
   if(serialCameraState == 0x30){
     uint8 pktRemain ;
@@ -99,21 +102,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
     else if(pktRxByteOffset < lastPktLen && isLastPkt == 1){
       return;
     }
-//    uint8 cnt = 0;
-//    if(isLastPkt == 1){
-//      cnt = NPI_ReadTransport(pktBuf, lastPktLen);
-//    }
-//    else{
-//      cnt = NPI_ReadTransport(pktBuf, PIC_PKT_LEN);
-//    }
-//    if(cnt < PIC_PKT_LEN && isLastPkt == 0){
-//      return;
-//    }
-//    else if(cnt < lastPktLen && isLastPkt == 1){
-//      return;
-//    }
     else{
-      //sendNotification(&pktRxByteOffset, 1);
       uint8 sum = 0;
       int y;
       for (y = 0; y < pktRxByteOffset - 2; y++)
@@ -123,6 +112,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
       }
       if (sum == pktBuf[ pktRxByteOffset-2 ])
       {
+        sendData(pktRxByteOffset);
         tmpPktIdx++;
         pktRxByteOffset = 0;
         waitCamera = 0;
@@ -131,27 +121,20 @@ void cSerialPacketParser( uint8 port, uint8 events )
         else if(tmpPktIdx == pktCnt){
           globalState = 7;
           SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-          picTotalLen = 0;            	// picture length
-          pktCnt = 0;
-          tmpPktIdx = 0;
-          lastPktLen = 0;
-          isLastPkt = 0;
           serialCameraState = 0;
         }
+        debug[0] = tmpPktIdx & 0xFF;
+        debug[1] = (tmpPktIdx >> 8) & 0xFF;
+        debug[2] = pktCnt & 0xFF;
+        debug[3] = (pktCnt >> 8)  & 0xFF;
+        sendNotification(debug, 4);
       }
-      debug[0] = tmpPktIdx & 0xFF;
-      debug[1] = (tmpPktIdx >> 8) & 0xFF;
-      debug[2] = pktCnt & 0xFF;
-      debug[3] = (pktCnt >> 8)  & 0xFF;
-      sendNotification(debug, 4);
     }
   }
   else{
     if(numBytes < 6)
       return;
     NPI_ReadTransport(pktBuf, 6);
-    //pktBuf[6] = numBytes;
-    //sendNotification(pktBuf, 7);
     sendNotification(pktBuf, 6);
     switch (serialCameraState){
     case 0:{
@@ -222,6 +205,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
       }
       break;
     }
+    case 0x24:
     case 0x30:{
       break;
     }
@@ -362,12 +346,13 @@ void sendCmd(uint8* cmd, int cmd_len)
 }
 
 void notifyPicInfo(void){
+  seqNum = 0;
   uint8 tempBuf[20];
   uint8 i;
   for(i = 0; i < 20; i++){
     tempBuf[i] = 0;
   }
-  tempBuf[0] = 0xAA;
+  tempBuf[0] = 0xA7;
   tempBuf[1] = seqNum & 0xFF;
   tempBuf[2] = (seqNum >> 8) & 0xFF;
   tempBuf[3] = picTotalLen & 0xFF;
@@ -382,3 +367,83 @@ void notifyPicInfo(void){
   // set send data timer
 }
 
+uint8 sendData(uint16 diff)
+{
+    //can send max 8 packets per connection interval
+    uint8 packets_sent = 0;
+    //ensure queue of notification is successful
+    bool send_error = FALSE;
+    //return value to update tail and send ack to msp
+    uint8 bytes_sent = 0;
+  
+    attHandleValueNoti_t noti;      
+    //dummy handle
+    noti.handle = 0x2E;
+    noti.value[0] = 0xA7;
+  
+    //counter
+    uint8 i;
+  
+    while ((packets_sent < 8) && (send_error == FALSE) && (isLastPkt == 0) )
+    {  
+        //send 20 bytes
+        noti.len = 20;
+        uint8 sum = 0xA7;
+        noti.value[1] = seqNum & 0xFF;
+        noti.value[2] = (seqNum >> 8) & 0xFF;
+        sum += noti.value[1];
+        sum += noti.value[2];
+        for (i = 3; i < 19; i++)
+        {
+            noti.value[i] = pktBuf[blePktOffset];
+            sum += noti.value[i];
+            blePktOffset++;
+        }
+        noti.value[noti.len-1] = sum;
+        //connection handle currently hardcoded
+        if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+        {
+            seqNum++;
+            packets_sent++;
+        }
+        else
+        {
+            send_error = TRUE;
+        }
+    }
+    //send remaining bytes  
+    while ((packets_sent < 8) && (diff > 0) && (send_error == FALSE) && (isLastPkt == 1))
+    {
+      if(diff > 16){
+        noti.len = 20;
+        diff -= 16;
+      }
+      else{
+        noti.len = diff + 4;
+        diff = 0;
+      }
+      uint8 sum = 0xA7;
+      noti.value[1] = seqNum & 0xFF;
+      noti.value[2] = (seqNum >> 8) & 0xFF;
+      sum += noti.value[1];
+      sum += noti.value[2];
+      for (i = 3; i < noti.len-1; i++)
+      {
+         noti.value[i] = pktBuf[blePktOffset];
+         sum += noti.value[i];
+         blePktOffset++;
+      }
+      noti.value[noti.len-1] = sum;
+      if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+      {
+          seqNum++;
+          packets_sent++;
+      }
+      else
+      {
+          send_error = TRUE;
+      }
+    }
+    blePktOffset = 0;
+    return packets_sent;
+}
