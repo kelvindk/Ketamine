@@ -47,6 +47,7 @@ extern uint16 tmpPktIdx;
 extern uint16 lastPktLen;
 extern uint8 pktRxByteOffset;
 extern uint8 waitBLEAck;
+extern uint8 isLastPkt;
 
 
 /*********************************************************************
@@ -70,3 +71,4 @@ extern uint16 circular_add(uint16 x, uint16 y);
 extern uint16 circular_diff(uint16 offset, uint16 tail);
 extern void clearRxBuf(void);
 extern void sendCmd(uint8* cmd, int cmd_len);
+extern void requestDataFrom(uint8 idx);

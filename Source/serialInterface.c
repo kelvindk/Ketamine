@@ -13,19 +13,12 @@
 //local function
 static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg );
 
-uint8 serialInterface_TaskID;   // Task ID for internal task/event processing
-
-#define SERIAL_MSG_START_ID        0xAB //indicate the start of serial message
-#define SERIAL_ACK                 0xA5 //inidicate an ACK
-#define SERIAL_DATA                0xAD //indiciate data from central device
+uint8 serialInterface_TaskID;           // Task ID for internal task/event processing
 
 uint8 pktBuf[RX_BUFF_SIZE];
 uint8 debug[5];
-uint8 preamble = FALSE; // preamble includes FF, 7F, Type
-uint8 pktLength = 0; // target packet length
-uint8 pktRxByteOffset = 0; // current received bytes offset
+uint8 pktRxByteOffset = 0;              // current received bytes offset
 uint8 numBytes;
-uint8 pktSeq = 0;
 
 uint8 cameraAddr = (CAM_ADDR << 5);  	// addr
 uint16 picTotalLen = 0;            	// picture length
@@ -113,21 +106,15 @@ void cSerialPacketParser( uint8 port, uint8 events )
       if (sum == pktBuf[ pktRxByteOffset-2 ])
       {
         sendData(pktRxByteOffset);
-        tmpPktIdx++;
-        pktRxByteOffset = 0;
+        waitBLEAck = 0xF0;
+//        pktRxByteOffset = 0;
         waitCamera = 0;
-        if(tmpPktIdx == pktCnt-1)
-          isLastPkt = 1;
-        else if(tmpPktIdx == pktCnt){
-          globalState = 7;
-          SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-          serialCameraState = 0;
-        }
-        debug[0] = tmpPktIdx & 0xFF;
-        debug[1] = (tmpPktIdx >> 8) & 0xFF;
-        debug[2] = pktCnt & 0xFF;
-        debug[3] = (pktCnt >> 8)  & 0xFF;
-        sendNotification(debug, 4);
+        
+//        debug[0] = tmpPktIdx & 0xFF;
+//        debug[1] = (tmpPktIdx >> 8) & 0xFF;
+//        debug[2] = pktCnt & 0xFF;
+//        debug[3] = (pktCnt >> 8)  & 0xFF;
+//        sendNotification(debug, 4);
       }
     }
   }
@@ -172,12 +159,6 @@ void cSerialPacketParser( uint8 port, uint8 events )
     }
     case 0x22:{
       if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0e | cameraAddr) && pktBuf[2] == 0x04 && pktBuf[4] == 0 && pktBuf[5] == 0){
-//        int i = 0;
-//        while(NPI_RxBufLen() < 6 && i < 87000){
-//          i++;
-//          if(i % 125 == 0)
-//            sendNotification(pktBuf, 6);
-//        }
         uint8 cnt = NPI_ReadTransport(pktBuf, 6);
         if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
           picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
@@ -202,6 +183,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
         }
         serialCameraState = 0x24;
         waitCamera = 0;
+        tmpPktIdx = 0;
       }
       break;
     }
@@ -214,62 +196,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
     }
     }
   }
-//  if((preamble) ) {
-//    if(pktRxByteOffset != 0) {
-//      numBytes = NPI_RxBufLen();
-//      if(numBytes < pktRxByteOffset) {
-//        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), numBytes);
-//        pktRxByteOffset -= numBytes;
-//        return;
-//      }
-//      else {
-//        (void)NPI_ReadTransport(pktBuf+(pktLength-pktRxByteOffset+1), pktRxByteOffset);
-//        pktRxByteOffset = 0;
-//      }
-//    }
-//    if(pktRxByteOffset == 0) {
-//      //HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-//      // got sufficient bytes in a packet
-////      serialPacketHandler();
-//      (void)sendNotification((uint8 *)&pktBuf, pktLength+1);
-//      preamble = FALSE;
-//      return;
-//    }
-//  }
-//  
-//  numBytes = NPI_RxBufLen();
-//   
-//  if(numBytes < 3)
-//    return;
-//   
-////   HalLedSet( HAL_LED_1, HAL_LED_MODE_TOGGLE );
-//   (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-//   if(RxByte != 0xFF)
-//     return;
-//   else{
-//     (void)NPI_ReadTransport((uint8 *)&RxByte, 1);
-//     if(RxByte != 0x7F)
-//       return;
-//     else { // Then handle the packet depending on type
-//              
-//       (void)NPI_ReadTransport((uint8 *)&pktBuf, 1);
-//       preamble = TRUE;
-//       switch(pktBuf[0]) {
-//        case 1: //ECG beat
-//          pktRxByteOffset = 1;
-//          break;
-//        case 2: //ACC
-//          pktRxByteOffset = 1;
-//          break;
-//        case 3: //Temp
-//          pktRxByteOffset = 2;
-//          break;
-//        default:
-//          preamble = FALSE;
-//       }
-//       pktLength = pktRxByteOffset;
-//     }
-//   }
+
 }
 
 uint8 sendNotification(uint8* bytes_sent, uint8 len)
@@ -299,7 +226,7 @@ uint8 sendAckMessage(uint8 bytes_sent)
   //data[1]= SERIAL_ACK;
   data[0]= bytes_sent;
   uint8 success_len = HalUARTWrite(NPI_UART_PORT, (uint8*)data, 1);
-  if (success_len == 3)
+  if (success_len == 1)
   {
     return SUCCESS;
   }
@@ -353,8 +280,8 @@ void notifyPicInfo(void){
     tempBuf[i] = 0;
   }
   tempBuf[0] = 0xA7;
-  tempBuf[1] = seqNum & 0xFF;
-  tempBuf[2] = (seqNum >> 8) & 0xFF;
+  tempBuf[1] = 0xFF;
+  tempBuf[2] = 0x7F;
   tempBuf[3] = picTotalLen & 0xFF;
   tempBuf[4] = (picTotalLen >> 8) & 0xFF;
   uint8 sum = 0;
@@ -363,7 +290,7 @@ void notifyPicInfo(void){
   }
   tempBuf[19] = sum;
   if( 0xFF == sendNotification(tempBuf, 20) )
-    waitBLEAck = 1;
+    waitBLEAck = 0xF0;
   // set send data timer
 }
 
@@ -380,9 +307,11 @@ uint8 sendData(uint16 diff)
     //dummy handle
     noti.handle = 0x2E;
     noti.value[0] = 0xA7;
+    blePktOffset = 0;
   
     //counter
     uint8 i;
+    seqNum = tmpPktIdx*8;
   
     while ((packets_sent < 8) && (send_error == FALSE) && (isLastPkt == 0) )
     {  
@@ -393,7 +322,7 @@ uint8 sendData(uint16 diff)
         noti.value[2] = (seqNum >> 8) & 0xFF;
         sum += noti.value[1];
         sum += noti.value[2];
-        for (i = 3; i < 19; i++)
+        for (i = 3; i < noti.len-1; i++)
         {
             noti.value[i] = pktBuf[blePktOffset];
             sum += noti.value[i];
@@ -444,6 +373,82 @@ uint8 sendData(uint16 diff)
           send_error = TRUE;
       }
     }
-    blePktOffset = 0;
     return packets_sent;
+}
+
+void requestDataFrom(uint8 idx){
+  if(idx > 7)
+    return;
+  
+  //ensure queue of notification is successful
+    bool send_error = FALSE;
+  
+    attHandleValueNoti_t noti;      
+    //dummy handle
+    noti.handle = 0x2E;
+    noti.value[0] = 0xA7;
+    blePktOffset = 16*idx;
+  
+    //counter
+    uint8 i;
+    seqNum = tmpPktIdx*8 + idx;
+  
+    while ((blePktOffset < PIC_PKT_LEN) && (send_error == FALSE) && (isLastPkt == 0) )
+    {  
+        //send 20 bytes
+        noti.len = 20;
+        uint8 sum = 0xA7;
+        noti.value[1] = seqNum & 0xFF;
+        noti.value[2] = (seqNum >> 8) & 0xFF;
+        sum += noti.value[1];
+        sum += noti.value[2];
+        for (i = 3; i < noti.len-1; i++)
+        {
+            noti.value[i] = pktBuf[blePktOffset];
+            sum += noti.value[i];
+            blePktOffset++;
+        }
+        noti.value[noti.len-1] = sum;
+        //connection handle currently hardcoded
+        if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+        {
+            seqNum++;
+        }
+        else
+        {
+            send_error = TRUE;
+        }
+    }
+    //send remaining bytes  
+    while ((blePktOffset < lastPktLen) && (send_error == FALSE) && (isLastPkt == 1))
+    {
+      uint8 diff = lastPktLen - blePktOffset;
+      if(diff > 16){
+        noti.len = 20;
+      }
+      else{
+        noti.len = diff + 4;
+      }
+      uint8 sum = 0xA7;
+      noti.value[1] = seqNum & 0xFF;
+      noti.value[2] = (seqNum >> 8) & 0xFF;
+      sum += noti.value[1];
+      sum += noti.value[2];
+      for (i = 3; i < noti.len-1; i++)
+      {
+         noti.value[i] = pktBuf[blePktOffset];
+         sum += noti.value[i];
+         blePktOffset++;
+      }
+      noti.value[noti.len-1] = sum;
+      if (!(GATT_Notification(0, &noti, FALSE))) //if sucessful
+      {
+          seqNum++;
+      }
+      else
+      {
+          send_error = TRUE;
+      }
+    }
+  
 }

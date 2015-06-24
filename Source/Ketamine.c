@@ -223,13 +223,6 @@ static uint8 somedata1[] =
   0x05,   // 'e'
 };
 
-uint8 dummy[] = 
-{
-  0xFF,
-  0xFF,
-  0xFF,
-};
-
 uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
@@ -1039,16 +1032,23 @@ static void performPeriodicTask( void )
 //        serialCameraState = 0x22;
       if(waitBLEAck == 5){
         serialCameraState = 0x30;
-        break;
+        waitBLEAck = 0;
       }
-      notifyPicInfo();
+      else{
+        notifyPicInfo();
+      }
       break;
     }
     case 0x30:{
-      
       waitCamera++;
-      waitCamera %= 5;
-      if(waitCamera == 1){
+      waitCamera %= 10;
+      if(waitCamera == 9){
+        serialCameraState = 0x10;
+        waitBLEAck = 0;
+        break;
+      }
+      
+      if(waitBLEAck == 0){
         if(tmpPktIdx < pktCnt){
           uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
           cmd[4] = tmpPktIdx & 0xff;
@@ -1058,27 +1058,33 @@ static void performPeriodicTask( void )
           pktRxByteOffset = 0;
           sendCmd(cmd, 6);
         }
+      }else if(waitBLEAck == 5){
+        tmpPktIdx++;
+        waitBLEAck = 0;
+        
+        if(tmpPktIdx == pktCnt-1)
+          isLastPkt = 1;
+        else if(tmpPktIdx == pktCnt){
+          globalState = 7;
+          SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+          serialCameraState = 0;
+        }
+        else{
+        }
       }
-      if(waitCamera == 4){
-        serialCameraState = 0x10;
-      }
+     
 
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
       break;
     }
-    default:{
-    }
     }
     
-
     HalUARTSuspend();
-    
     break;
   }
   case 7:{
-    sendNotification(dummy, 3);
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
@@ -1151,6 +1157,10 @@ void readColorAfterDelay(uint8 state){
  */
 static void simpleProfileChangeCB( uint8 paramID )
 {
+  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+  ST_HAL_DELAY(1000);
+  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+  
   uint8 newValue;
   globalCount = 0;
   switch( paramID )
@@ -1159,13 +1169,10 @@ static void simpleProfileChangeCB( uint8 paramID )
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
       globalState = newValue;
       
-      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
-      
       if(newValue == 6){
         serialCameraState = 0;
         waitCamera = 0;
+        waitBLEAck = 0;
       }
 
       break;
@@ -1174,10 +1181,6 @@ static void simpleProfileChangeCB( uint8 paramID )
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
       waitBLEAck = newValue;
       
-      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
-
       break;
 
     default:
@@ -1227,11 +1230,9 @@ char *bdAddr2Str( uint8 *pAddr )
  */
 void OpenUART(void)
 {
-  //P1_2 = 1;               // Turn on regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
-  //HalUARTInit();        // Init UART on DMA1
+  //HalUARTInit();              // Init UART on ISR
   //NPI_InitTransport(cSerialPacketParser);
-  //printf(".");
 }
 
 /*********************************************************************
@@ -1243,7 +1244,6 @@ void OpenUART(void)
  */
 void CloseUART(void)
 {
-  //P1_2 = 0;               // Turn off regulator of color sensor
   HalLedSet( HAL_LED_1 | HAL_LED_2 | HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
   // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
   // P1DIR &= ~0x30;
@@ -1260,3 +1260,13 @@ void initialParameter(void){
   clrCnt = 0;
   disconnectCnt = 0;
 }
+
+//void parseCmd(uint8 value){
+//  if( (value & 0xF0) == 0){
+//    waitBLEAck = value;
+//  }
+//  else{
+//    requestDataFrom(value & 0x0F);
+//    waitBLEAck = 0xF0;
+//  }
+//}
