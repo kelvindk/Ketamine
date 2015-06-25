@@ -3,3 +3,5 @@ CC2540DB/*
 .DS_Store
 Source/tags
 ._*
+*.orig
+
