@@ -6,7 +6,7 @@
 #define RX_BUFF_SIZE    500
 
 #define PIC_PKT_LEN    128					//data length of each read, dont set this too big because ram is limited
-#define PIC_FMT_VGA    3
+#define PIC_FMT_VGA    5
 #define PIC_FMT_CIF    5
 #define PIC_FMT_OCIF   3
 #define CAM_ADDR       0

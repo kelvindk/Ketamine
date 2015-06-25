@@ -100,7 +100,7 @@
 #define KTM_PERIODIC_EVT_PERIOD                         1000
 #define KTM_ACQUIRE_PIC_PICTURE                         100
 #define KTM_COLORDELAY_PERIOD                           30
-#define KTM_SENDDATA_PERIOD                             7
+#define KTM_SENDDATA_PERIOD                             800
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -174,7 +174,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x31,   // '1'
+  0x32,   // '2'
 
   // connection interval range
   0x05,   // length of this data
@@ -558,8 +558,12 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     else if( KTM_PERIODIC_EVT_PERIOD )
     {
       performPeriodicTask();
-      advCount = 0;
-      osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
+      if(globalState == 6 && serialCameraState == 0x30){
+        osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_SENDDATA_PERIOD);
+      }
+      else{
+        osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_PERIODIC_EVT_PERIOD);  // adjust duty cycle
+      }
     }
 
     return (events ^ KTM_PERIODIC_EVT);
@@ -725,10 +729,11 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
     case GAPROLE_CONNECTED:
       {
+        //reset adv counter once connected
+        advCount = 0;
         #if (defined HAL_LCD) && (HAL_LCD == TRUE)
           HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
         #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-//          HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
           // Set timer for first periodic event
           // osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, 4000 );
           

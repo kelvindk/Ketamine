@@ -184,6 +184,8 @@ void cSerialPacketParser( uint8 port, uint8 events )
         serialCameraState = 0x24;
         waitCamera = 0;
         tmpPktIdx = 0;
+        pktRxByteOffset = 0;
+        isLastPkt = 0;
       }
       break;
     }
