@@ -394,9 +394,9 @@ void Ketamine_Init( uint8 task_id )
   P0DIR = 0xDE;
   P0 = 0x21;
   
-  P1SEL = 0x3C;
-  P1DIR = 0xE7;
-  P1 = 0x3C;
+  P1SEL = 0;
+  P1DIR = 0xFF;
+  P1 = 0x04;
   
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
