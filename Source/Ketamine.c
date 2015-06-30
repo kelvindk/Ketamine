@@ -964,6 +964,7 @@ static void performPeriodicTask( void )
     
     switch (serialCameraState){
     case 0:{
+      osal_pwrmgr_device(PWRMGR_ALWAYS_ON);
       uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
       clearRxBuf();
       sendCmd(cmd, 6);
@@ -1086,10 +1087,12 @@ static void performPeriodicTask( void )
     }
     }
     
-    HalUARTSuspend();
+    //HalUARTSuspend();
     break;
   }
   case 7:{
+    HalUARTSuspend();
+    osal_pwrmgr_device(PWRMGR_BATTERY);
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
