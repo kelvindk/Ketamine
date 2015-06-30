@@ -173,7 +173,7 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '0'
+  0x31,   // '0'
   0x32,   // '2'
 
   // connection interval range
@@ -241,6 +241,8 @@ static void performPeriodicTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 void initialParameter(void);
 void readColorAfterDelay(uint8 state);
+void getPictureData();
+void parseBLECmd(uint8 value);
 
 #if defined( CC2540_MINIDK )
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
@@ -391,12 +393,17 @@ void Ketamine_Init( uint8 task_id )
 
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
   P0SEL = 0;
-  P0DIR = 0xDE;
-  P0 = 0x21;
+  P0DIR = 0x9E;
+  P0 = 0x01;
   
-  P1SEL = 0x3C;
-  P1DIR = 0xE7;
-  P1 = 0x3C;
+  //P1SEL = 0x3C;
+  //P1DIR = 0xE7;
+  //P1 = 0x3C;
+
+  P1SEL = 0;
+  P1DIR = 0xFF;
+  P1 = 0x04;
+  
   
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
@@ -511,22 +518,22 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ KTM_PERIODIC_EVT);
       }
    
-      P1SEL &= ~0x03;
-      P1DIR |= 0x03;
+      //P1SEL &= ~0x03;
+      //P1DIR |= 0x03;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
       
-      if(advCount >= advMax){
-        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-        advCount = 0;
-        globalState = 1;
-        globalCount = 0; 
-        uint8 disabled = FALSE;
-        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-        return (events ^ KTM_PERIODIC_EVT);
-      }
+//      if(advCount >= advMax){
+//        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+//        advCount = 0;
+//        globalState = 1;
+//        globalCount = 0; 
+//        uint8 disabled = FALSE;
+//        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+//        return (events ^ KTM_PERIODIC_EVT);
+//      }
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -1017,25 +1024,6 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x24:{
-//      waitCamera++;
-//      waitCamera %= 5;
-//      uint8 num =  NPI_RxBufLen();
-//      sendNotification(&num, 1);
-//      if (num >= 6){
-//        NPI_ReadTransport(pktBuf, 6);
-//        sendNotification(pktBuf, 6);
-//        if (pktBuf[0] == 0xaa && pktBuf[1] == (0x0a | cameraAddr) && pktBuf[2] == 0x01){
-//          picTotalLen = (pktBuf[3]) | (pktBuf[4] << 8) | (pktBuf[5] << 16);
-//          pktCnt = (picTotalLen) / (PIC_PKT_LEN - 6);
-//          if ((picTotalLen % (PIC_PKT_LEN-6)) != 0){
-//            pktCnt += 1;
-//            lastPktLen =  picTotalLen % (PIC_PKT_LEN-6);
-//          }
-//          serialCameraState = 0x30;
-//        }
-//      }
-//      if(waitCamera == 0)
-//        serialCameraState = 0x22;
       if(waitBLEAck == 5){
         serialCameraState = 0x30;
         waitBLEAck = 0;
@@ -1056,13 +1044,14 @@ static void performPeriodicTask( void )
       
       if(waitBLEAck == 0){
         if(tmpPktIdx < pktCnt){
-          uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
-          cmd[4] = tmpPktIdx & 0xff;
-          cmd[5] = (tmpPktIdx >> 8) & 0xff;
-          
-          clearRxBuf();
-          pktRxByteOffset = 0;
-          sendCmd(cmd, 6);
+//          uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
+//          cmd[4] = tmpPktIdx & 0xff;
+//          cmd[5] = (tmpPktIdx >> 8) & 0xff;
+//          
+//          clearRxBuf();
+//          pktRxByteOffset = 0;
+//          sendCmd(cmd, 6);
+          getPictureData();
         }
       }else if(waitBLEAck == 5){
         tmpPktIdx++;
@@ -1086,8 +1075,6 @@ static void performPeriodicTask( void )
       break;
     }
     }
-    
-    //HalUARTSuspend();
     break;
   }
   case 7:{
@@ -1187,7 +1174,8 @@ static void simpleProfileChangeCB( uint8 paramID )
 
     case SIMPLEPROFILE_CHAR3:
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
-      waitBLEAck = newValue;
+      parseBLECmd(newValue);
+      //waitBLEAck = newValue;
       
       break;
 
@@ -1269,12 +1257,24 @@ void initialParameter(void){
   disconnectCnt = 0;
 }
 
-//void parseCmd(uint8 value){
-//  if( (value & 0xF0) == 0){
-//    waitBLEAck = value;
-//  }
-//  else{
-//    requestDataFrom(value & 0x0F);
-//    waitBLEAck = 0xF0;
-//  }
-//}
+void parseBLECmd(uint8 value){
+  if( (value & 0xF0) == 0){
+    waitBLEAck = value;
+  }
+  else{
+    //requestDataFrom(value & 0x0F);
+    tmpPktIdx = value & 0x0F;
+    getPictureData();
+    waitBLEAck = 0xF0;
+  }
+}
+
+void getPictureData(){
+  uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
+  cmd[4] = tmpPktIdx & 0xff;
+  cmd[5] = (tmpPktIdx >> 8) & 0xff;
+          
+  clearRxBuf();
+  pktRxByteOffset = 0;
+  sendCmd(cmd, 6);
+}
