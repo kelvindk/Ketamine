@@ -518,8 +518,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         return (events ^ KTM_PERIODIC_EVT);
       }
    
-      //P1SEL &= ~0x03;
-      //P1DIR |= 0x03;
       advCount = advCount + 1;
       HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
       ST_HAL_DELAY(1000);
@@ -978,6 +976,9 @@ static void performPeriodicTask( void )
   case 6:{
     HalUARTInit(); 
     NPI_InitTransport(cSerialPacketParser);
+    
+    HalLedInit();
+    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(125);
     
     switch (serialCameraState){
@@ -986,45 +987,30 @@ static void performPeriodicTask( void )
       uint8 cmd[] = {0xaa,0x0d|cameraAddr,0x00,0x00,0x00,0x00};
       clearRxBuf();
       sendCmd(cmd, 6);
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
       break;
     }
     case 0x10:{
       uint8 cmd[] = { 0xaa, 0x01 | cameraAddr, 0x00, 0x07, 0x00, PIC_FMT };
       clearRxBuf();
       sendCmd(cmd, 6);
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
       break;
     }
     case 0x20:{
       uint8 cmd[] = { 0xaa, 0x06 | cameraAddr, 0x08, PIC_PKT_LEN & 0xff, (PIC_PKT_LEN>>8) & 0xff ,0};
       clearRxBuf();
       sendCmd(cmd, 6);
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
       break;
     }
     case 0x21:{
       uint8 cmd[] = { 0xaa, 0x05 | cameraAddr, 0, 0, 0, 0};
       clearRxBuf();
       sendCmd(cmd, 6);
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
       break;
     }
     case 0x22:{
       uint8 cmd[] = { 0xaa, 0x04 | cameraAddr, 0x1, 0, 0, 0};
       clearRxBuf();
       sendCmd(cmd, 6);
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1, HAL_LED_MODE_OFF );
       break;
     }
     case 0x23:{
@@ -1076,9 +1062,9 @@ static void performPeriodicTask( void )
       }
      
 
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
+//      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+//      ST_HAL_DELAY(1000);
+//      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
       break;
     }
     }
