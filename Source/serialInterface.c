@@ -303,7 +303,6 @@ uint8 sendData(uint16 diff)
     //ensure queue of notification is successful
     bool send_error = FALSE;
     //return value to update tail and send ack to msp
-    uint8 bytes_sent = 0;
   
     attHandleValueNoti_t noti;      
     //dummy handle

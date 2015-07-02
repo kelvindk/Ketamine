@@ -70,9 +70,9 @@
 #include "devinfoservice.h"
 #include "simpleGATTprofile.h"
 
-#if defined( CC2540_MINIDK )
-  #include "simplekeys.h"
-#endif
+//#if defined( CC2540_MINIDK )
+//  #include "simplekeys.h"
+//#endif
 
 #include "peripheral.h"
 
@@ -156,7 +156,7 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
-static uint8 message_counter = 0;
+static uint8 button_counter = 0;
 
 static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
 
@@ -173,7 +173,7 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x31,   // '0'
+  0x30,   // '0'
   0x32,   // '2'
 
   // connection interval range
@@ -244,9 +244,9 @@ void readColorAfterDelay(uint8 state);
 void getPictureData();
 void parseBLECmd(uint8 value);
 
-#if defined( CC2540_MINIDK )
+//#if defined( CC2540_MINIDK )
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
-#endif
+//#endif
 
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 static char *bdAddr2Str ( uint8 *pAddr );
@@ -409,7 +409,7 @@ void Ketamine_Init( uint8 task_id )
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
   // Register for all key events - This app will handle all key events
-  //RegisterForKeys( Ketamine_TaskID );
+  RegisterForKeys( Ketamine_TaskID );
   
 #if (defined HAL_LCD) && (HAL_LCD == TRUE)
 
@@ -477,7 +477,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
     if ( (pMsg = osal_msg_receive( Ketamine_TaskID )) != NULL )
     {
-//      Ketamine_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
+      Ketamine_ProcessOSALMsg( (osal_event_hdr_t *)pMsg );
 
       // Release the OSAL message
       VOID osal_msg_deallocate( pMsg );
@@ -600,11 +600,11 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
   switch ( pMsg->event )
   {
-  #if defined( CC2540_MINIDK )
+  //#if defined( CC2540_MINIDK )
     case KEY_CHANGE:
       Ketamine_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
       break;
-  #endif // #if defined( CC2540_MINIDK )
+  //#endif // #if defined( CC2540_MINIDK )
 
   default:
     // do nothing
@@ -612,7 +612,7 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
   }
 }
 
-#if defined( CC2540_MINIDK )
+//#if defined( CC2540_MINIDK )
 /*********************************************************************
  * @fn      Ketamine_HandleKeys
  *
@@ -627,55 +627,66 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  */
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 {
-  uint8 SK_Keys = 0;
-
-  VOID shift;  // Intentionally unreferenced parameter
-
-  if ( keys & HAL_KEY_SW_1 )
-  {
-    SK_Keys |= SK_KEY_LEFT;
+  uint8 current_adv_enabled_status;
+  GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
+  if(current_adv_enabled_status == false){
+    uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
+    if( result == INVALID_EVENT_ID){
+      initialParameter();
+    }
+    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
   }
-
-  if ( keys & HAL_KEY_SW_2 )
-  {
-
-    SK_Keys |= SK_KEY_RIGHT;
+  else{
+    attHandleValueNoti_t debugNoti; 
+    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
+  }
+  button_counter++;
+  
+//  if ( keys & HAL_KEY_SW_1 )
+//  {
+//    SK_Keys |= SK_KEY_LEFT;
+//  }
+//
+//  if ( keys & HAL_KEY_SW_2 )
+//  {
+//
+//    SK_Keys |= SK_KEY_RIGHT;
 
     // if device is not in a connection, pressing the right key should toggle
     // advertising on and off
     // Note:  If PLUS_BROADCASTER is define this condition is ignored and
     //        Device may advertise during connections as well. 
-#ifndef PLUS_BROADCASTER  
-    if( gapProfileState != GAPROLE_CONNECTED )
-    {
-#endif // PLUS_BROADCASTER
-      uint8 current_adv_enabled_status;
-      uint8 new_adv_enabled_status;
-
-      //Find the current GAP advertisement status
-      GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
-
-      if( current_adv_enabled_status == FALSE )
-      {
-        new_adv_enabled_status = TRUE;
-      }
-      else
-      {
-        new_adv_enabled_status = FALSE;
-      }
-
-      //change the GAP advertisement status to opposite of current status
-      GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
-#ifndef PLUS_BROADCASTER
-    }
-#endif // PLUS_BROADCASTER
-  }
-
-  // Set the value of the keys state to the Simple Keys Profile;
-  // This will send out a notification of the keys state if enabled
-  SK_SetParameter( SK_KEY_ATTR, sizeof ( uint8 ), &SK_Keys );
+//#ifndef PLUS_BROADCASTER  
+//    if( gapProfileState != GAPROLE_CONNECTED )
+//    {
+//#endif // PLUS_BROADCASTER
+//      uint8 current_adv_enabled_status;
+//      uint8 new_adv_enabled_status;
+//
+//      //Find the current GAP advertisement status
+//      GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
+//
+//      if( current_adv_enabled_status == FALSE )
+//      {
+//        new_adv_enabled_status = TRUE;
+//      }
+//      else
+//      {
+//        new_adv_enabled_status = FALSE;
+//      }
+//
+//      //change the GAP advertisement status to opposite of current status
+//      GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
+//#ifndef PLUS_BROADCASTER
+//    }
+//#endif // PLUS_BROADCASTER
+//  }
+//
+//  // Set the value of the keys state to the Simple Keys Profile;
+//  // This will send out a notification of the keys state if enabled
+//  SK_SetParameter( SK_KEY_ATTR, sizeof ( uint8 ), &SK_Keys );
 }
-#endif // #if defined( CC2540_MINIDK )
+//#endif // #if defined( CC2540_MINIDK )
 
 /*********************************************************************
  * @fn      peripheralStateNotificationCB
@@ -1017,10 +1028,6 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x23:{
-//      waitCamera++;
-//      if(waitCamera == 4){
-//        serialCameraState = 0x10;
-//      }
       break;
     }
     case 0x24:{
