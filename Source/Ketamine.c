@@ -902,7 +902,7 @@ static void performPeriodicTask( void )
   case 2:
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+    //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_5, HAL_ADC_RESOLUTION_8);
@@ -1037,13 +1037,6 @@ static void performPeriodicTask( void )
       
       if(waitBLEAck == 0){
         if(tmpPktIdx < pktCnt){
-//          uint8 cmd[] = { 0xaa, 0x0e | cameraAddr, 0x00, 0x00, 0x00, 0x00 };
-//          cmd[4] = tmpPktIdx & 0xff;
-//          cmd[5] = (tmpPktIdx >> 8) & 0xff;
-//          
-//          clearRxBuf();
-//          pktRxByteOffset = 0;
-//          sendCmd(cmd, 6);
           getPictureData();
         }
       }else if(waitBLEAck == 5){
@@ -1252,7 +1245,8 @@ void initialParameter(void){
 
 void parseBLECmd(uint8 value){
   if( (value & 0xF0) == 0){
-    waitBLEAck = value;
+    if(waitBLEAck != 0)
+      waitBLEAck = value;
   }
   else{
     //requestDataFrom(value & 0x0F);
