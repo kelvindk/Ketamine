@@ -123,7 +123,7 @@
 #undef  HAL_UART_Px_SEL
 #if    (HAL_UART_DMA == 1)
 #define PxSEL                      P1SEL
-#define HAL_UART_PERCFG_BIT        0x01         // USART0 on P0, Alt-1; so clear this bit.
+#define HAL_UART_PERCFG_BIT        0x01         // USART0 on P1, Alt-2; so clear this bit.
 #define HAL_UART_PRIPO             0x00         // USART0 priority over UART1.
 #define HAL_UART_Px_CTS            0x10         // Peripheral I/O Select for CTS flow control.
 #define HAL_UART_Px_RTS            0x20         // Peripheral I/O Select for RTS must be manual.

@@ -25,7 +25,7 @@
   its documentation for any purpose.
 
   YOU FURTHER ACKNOWLEDGE AND AGREE THAT THE SOFTWARE AND DOCUMENTATION ARE
-  PROVIDED “AS IS” WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
+  PROVIDED “AS IS?WITHOUT WARRANTY OF ANY KIND, EITHER EXPRESS OR IMPLIED,
   INCLUDING WITHOUT LIMITATION, ANY WARRANTY OF MERCHANTABILITY, TITLE,
   NON-INFRINGEMENT AND FITNESS FOR A PARTICULAR PURPOSE. IN NO EVENT SHALL
   TEXAS INSTRUMENTS OR ITS LICENSORS BE LIABLE OR OBLIGATED UNDER CONTRACT,
@@ -122,10 +122,10 @@
 #undef IENx
 #undef IEN_BIT
 #if (HAL_UART_ISR == 1)
-#define PxOUT                      P0
-#define PxIN                       P0
-#define PxDIR                      P0DIR
-#define PxSEL                      P0SEL
+#define PxOUT                      P1
+#define PxIN                       P1
+#define PxDIR                      P1DIR
+#define PxSEL                      P1SEL
 #define UxCSR                      U0CSR
 #define UxUCR                      U0UCR
 #define UxDBUF                     U0DBUF
@@ -136,12 +136,12 @@
 #define UTXxIE                     UTX0IE
 #define UTXxIF                     UTX0IF
 
-#define PxIFG                      P0IFG
-#define PxIF                       P0IF
-#define PxIEN                      P0IEN
+#define PxIFG                      P1IFG
+#define PxIF                       P1IF
+#define PxIEN                      P1IEN
 #define PICTL_BIT                  0x01
-#define IENx                       IEN1
-#define IEN_BIT                    0x20
+#define IENx                       IEN2
+#define IEN_BIT                    0x10
 
 #else
 #define PxOUT                      P1
@@ -167,11 +167,11 @@
 #endif
 
 #if (HAL_UART_ISR == 1)
-#define HAL_UART_PERCFG_BIT        0x01         // USART0 on P0, Alt-1; so clear this bit.
-#define HAL_UART_Px_RX_TX          0x0C         // Peripheral I/O Select for Rx/Tx.
-#define HAL_UART_Px_RX             0x04         // Peripheral I/O Select for Rx.
-#define HAL_UART_Px_RTS            0x20         // Peripheral I/O Select for RTS.
-#define HAL_UART_Px_CTS            0x10         // Peripheral I/O Select for CTS.
+#define HAL_UART_PERCFG_BIT        0x01         // USART0 on P1, Alt-2; so clear this bit.
+#define HAL_UART_Px_RX_TX          0x30         // Peripheral I/O Select for Rx/Tx.
+#define HAL_UART_Px_RX             0x10         // Peripheral I/O Select for Rx.
+#define HAL_UART_Px_RTS            0x08         // Peripheral I/O Select for RTS.
+#define HAL_UART_Px_CTS            0x04         // Peripheral I/O Select for CTS.
 #else
 #define HAL_UART_PERCFG_BIT        0x02         // USART1 on P1, Alt-2; so set this bit.
 #define HAL_UART_Px_RTS            0x20         // Peripheral I/O Select for RTS.
@@ -264,7 +264,8 @@ static void HalUARTInitISR(void)
   P2DIR |= HAL_UART_PRIPO;
 
 #if (HAL_UART_ISR == 1)
-  PERCFG &= ~HAL_UART_PERCFG_BIT;    // Set UART0 I/O location to P0.
+  PERCFG |= HAL_UART_PERCFG_BIT;     //Set UART0 I/O to Alt. 2 location on P1
+  //PERCFG &= ~HAL_UART_PERCFG_BIT;    // Set UART0 I/O location to P0.
 #else
   PERCFG |= HAL_UART_PERCFG_BIT;     // Set UART1 I/O location to P1.
 #endif

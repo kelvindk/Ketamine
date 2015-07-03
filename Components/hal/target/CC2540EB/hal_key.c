@@ -133,7 +133,7 @@
 
 /* SW_6 is at P0.1 */
 #define HAL_KEY_SW_6_PORT   P0
-#define HAL_KEY_SW_6_BIT    BV(1)
+#define HAL_KEY_SW_6_BIT    BV(0)  //changed
 #define HAL_KEY_SW_6_SEL    P0SEL
 #define HAL_KEY_SW_6_DIR    P0DIR
 
@@ -145,7 +145,7 @@
 #define HAL_KEY_SW_6_IEN      IEN1  /* CPU interrupt mask register */
 #define HAL_KEY_SW_6_IENBIT   BV(5) /* Mask bit for all of Port_0 */
 #define HAL_KEY_SW_6_ICTL     P0IEN /* Port Interrupt Control register */
-#define HAL_KEY_SW_6_ICTLBIT  BV(1) /* P0IEN - P0.1 enable/disable bit */
+#define HAL_KEY_SW_6_ICTLBIT  BV(0) /* P0IEN - P0.1 enable/disable bit */    //changed
 #define HAL_KEY_SW_6_PXIFG    P0IFG /* Interrupt flag at source */
 
 /* Joy stick move at P2.0 */
@@ -335,31 +335,35 @@ void HalKeyConfig (bool interruptEnable, halKeyCBack_t cback)
 uint8 HalKeyRead ( void )
 {
   uint8 keys = 0;
-
-#if defined (CC2540_MINIDK)
-  if (!(HAL_KEY_SW_1_PORT & HAL_KEY_SW_1_BIT))    /* Key is active low */
-  {
-    keys |= HAL_KEY_SW_1;
-  }
-  if (!(HAL_KEY_SW_2_PORT & HAL_KEY_SW_2_BIT))    /* Key is active low */
-  {
-    keys |= HAL_KEY_SW_2;
-  }
-#else
-#ifdef HAL_BOARD_CC2530EB_REV17
-  if ( (HAL_KEY_SW_6_PORT & HAL_KEY_SW_6_BIT))    /* Key is active high */
-#elif defined (HAL_BOARD_CC2530EB_REV13)
   if (!(HAL_KEY_SW_6_PORT & HAL_KEY_SW_6_BIT))    /* Key is active low */
-#endif
   {
     keys |= HAL_KEY_SW_6;
   }
-
-  if ((HAL_KEY_JOY_MOVE_PORT & HAL_KEY_JOY_MOVE_BIT))  /* Key is active low */
-  {
-    keys |= halGetJoyKeyInput();
-  }
-#endif
+  
+//#if defined (CC2540_MINIDK)
+//  if (!(HAL_KEY_SW_1_PORT & HAL_KEY_SW_1_BIT))    /* Key is active low */
+//  {
+//    keys |= HAL_KEY_SW_1;
+//  }
+//  if (!(HAL_KEY_SW_2_PORT & HAL_KEY_SW_2_BIT))    /* Key is active low */
+//  {
+//    keys |= HAL_KEY_SW_2;
+//  }
+//#else
+//#ifdef HAL_BOARD_CC2530EB_REV17
+//  if ( (HAL_KEY_SW_6_PORT & HAL_KEY_SW_6_BIT))    /* Key is active high */
+//#elif defined (HAL_BOARD_CC2530EB_REV13)
+//  if (!(HAL_KEY_SW_6_PORT & HAL_KEY_SW_6_BIT))    /* Key is active low */
+//#endif
+//  {
+//    keys |= HAL_KEY_SW_6;
+//  }
+//
+//  if ((HAL_KEY_JOY_MOVE_PORT & HAL_KEY_JOY_MOVE_BIT))  /* Key is active low */
+//  {
+//    keys |= halGetJoyKeyInput();
+//  }
+//#endif
   return keys;
 }
 

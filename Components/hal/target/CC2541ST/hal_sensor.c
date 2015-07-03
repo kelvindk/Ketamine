@@ -142,7 +142,7 @@ uint16 HalSensorTest(void)
 
   for  (i=0; i<N_TEST_RUNS; i++)
   {
-    HalLedSet(HAL_LED_2,HAL_LED_MODE_TOGGLE);
+    //HalLedSet(HAL_LED_2,HAL_LED_MODE_TOGGLE);
 
     // 1. Temp sensor test
     if (HalIRTempTest())
