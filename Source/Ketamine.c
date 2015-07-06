@@ -223,6 +223,7 @@ static uint8 somedata1[] =
   0x05,   // 'e'
 };
 
+static uint8 version = 0;
 uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
@@ -1094,6 +1095,10 @@ static void performPeriodicTask( void )
   }
   case 9:{
     osal_pwrmgr_device( PWRMGR_ALWAYS_ON );
+    break;
+  }
+  case 10:{
+    sendReadBuf(&noti, &version, 1, 0xDD);
     break;
   }
   default:
