@@ -106,8 +106,9 @@ void cSerialPacketParser( uint8 port, uint8 events )
       if (sum == pktBuf[ pktRxByteOffset-2 ])
       {
         sendData(pktRxByteOffset);
-        waitBLEAck = 0xF0;
-//        pktRxByteOffset = 0;
+        if(tmpPktIdx % 2 == 0 || isLastPkt == 1)
+          waitBLEAck = 0xF0;
+        tmpPktIdx++;
         waitCamera = 0;
         
 //        debug[0] = tmpPktIdx & 0xFF;

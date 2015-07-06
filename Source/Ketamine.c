@@ -100,7 +100,7 @@
 #define KTM_PERIODIC_EVT_PERIOD                         1000
 #define KTM_ACQUIRE_PIC_PICTURE                         100
 #define KTM_COLORDELAY_PERIOD                           30
-#define KTM_SENDDATA_PERIOD                             800
+#define KTM_SENDDATA_PERIOD                             500
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -173,8 +173,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '0'
-  0x32,   // '2'
+  0x30,   // '1'
+  0x33,   // '2'
 
   // connection interval range
   0x05,   // length of this data
@@ -979,7 +979,8 @@ static void performPeriodicTask( void )
     
     HalLedInit();
     HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(125);
+    P1_3 = 1;
+    ST_HAL_DELAY(1250);
     
     switch (serialCameraState){
     case 0:{
@@ -1028,9 +1029,13 @@ static void performPeriodicTask( void )
     }
     case 0x30:{
       waitCamera++;
-      waitCamera %= 10;
-      if(waitCamera == 9){
-        serialCameraState = 0x10;
+      waitCamera %= 20;
+      if(waitCamera == 19){
+        //serialCameraState = 0x10;
+        if(tmpPktIdx >= 2)
+          tmpPktIdx -= 2;
+        else
+          tmpPktIdx = 0;
         waitBLEAck = 0;
         break;
       }
@@ -1040,18 +1045,29 @@ static void performPeriodicTask( void )
           getPictureData();
         }
       }else if(waitBLEAck == 5){
-        tmpPktIdx++;
+        //tmpPktIdx++;
         waitBLEAck = 0;
-        
-        if(tmpPktIdx == pktCnt-1)
+        waitCamera = 0;
+//        if(tmpPktIdx == pktCnt-1)
+//          isLastPkt = 1;
+//        else if(tmpPktIdx == pktCnt){
+//          globalState = 7;
+//          SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//          serialCameraState = 0;
+//        }
+//        else{
+//        }
+      }
+      if(tmpPktIdx == pktCnt-1){
           isLastPkt = 1;
-        else if(tmpPktIdx == pktCnt){
-          globalState = 7;
-          SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-          serialCameraState = 0;
-        }
-        else{
-        }
+      }
+      else if(tmpPktIdx == pktCnt){
+        globalState = 7;
+        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+        serialCameraState = 0;
+      }
+      else{
+        isLastPkt = 0;
       }
      
 
@@ -1065,6 +1081,7 @@ static void performPeriodicTask( void )
   }
   case 7:{
     HalUARTSuspend();
+    P1_3 = 0;
     osal_pwrmgr_device(PWRMGR_BATTERY);
     HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
@@ -1241,6 +1258,7 @@ void initialParameter(void){
   globalState = 1;
   clrCnt = 0;
   disconnectCnt = 0;
+  P1_3 = 0;
 }
 
 void parseBLECmd(uint8 value){
@@ -1252,7 +1270,7 @@ void parseBLECmd(uint8 value){
     //requestDataFrom(value & 0x0F);
     tmpPktIdx = value & 0x0F;
     getPictureData();
-    waitBLEAck = 0xF0;
+    //waitBLEAck = 0xF0;
   }
 }
 
