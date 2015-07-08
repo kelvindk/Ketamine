@@ -223,7 +223,7 @@ static uint8 somedata1[] =
   0x05,   // 'e'
 };
 
-static uint8 version = 0;
+static uint8 version = 1;
 uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
