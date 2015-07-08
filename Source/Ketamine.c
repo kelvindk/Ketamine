@@ -174,7 +174,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '1'
-  0x33,   // '2'
+  0x31,   // '2'
 
   // connection interval range
   0x05,   // length of this data
@@ -396,10 +396,6 @@ void Ketamine_Init( uint8 task_id )
   P0SEL = 0;
   P0DIR = 0x9E;
   P0 = 0x01;
-  
-  //P1SEL = 0x3C;
-  //P1DIR = 0xE7;
-  //P1 = 0x3C;
 
   P1SEL = 0;
   P1DIR = 0xFF;
@@ -626,19 +622,22 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  */
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 {
-  uint8 current_adv_enabled_status;
-  GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
-  if(current_adv_enabled_status == false){
-    uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
-    if( result == INVALID_EVENT_ID){
-      initialParameter();
-    }
-    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
-  }
-  else{
-    attHandleValueNoti_t debugNoti; 
-    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
-  }
+//  uint8 current_adv_enabled_status;
+//  GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
+  
+//  if(gapProfileState != GAPROLE_CONNECTED){
+//    uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
+//    if( result == INVALID_EVENT_ID){
+//      initialParameter();
+//    }
+//    osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
+//  }
+//  else{
+//    attHandleValueNoti_t debugNoti; 
+//    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
+//  }
+  attHandleValueNoti_t debugNoti; 
+  sendReadBuf(&debugNoti,  &button_counter, 1, 0xDD);
   button_counter++;
   
 //  if ( keys & HAL_KEY_SW_1 )
