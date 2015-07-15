@@ -174,7 +174,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '1'
-  0x33,   // '2'
+  0x34,   // '2'
 
   // connection interval range
   0x05,   // length of this data
@@ -385,11 +385,14 @@ void Ketamine_Init( uint8 task_id )
     uint8 charValue3 = 3;
     uint8 charValue4 = 4;
     uint8 charValue5[SIMPLEPROFILE_CHAR5_LEN] = { 1, 2, 3, 4, 5 };
+    uint8 charValue6[SIMPLEPROFILE_CHAR6_LEN] = { 1, 2, 3, 4, 5 };
+
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof ( uint8 ), &charValue1 );
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR2, sizeof ( uint8 ), &charValue2 );
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR3, sizeof ( uint8 ), &charValue3 );
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR4, sizeof ( uint8 ), &charValue4 );
     SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR5, SIMPLEPROFILE_CHAR5_LEN, charValue5 );
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR6, SIMPLEPROFILE_CHAR6_LEN, charValue6 );
   }
 
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_OFF );
@@ -632,10 +635,10 @@ static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
     }
     osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD );
   }
-  else{
-    attHandleValueNoti_t debugNoti; 
-    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
-  }
+//  else{
+//    attHandleValueNoti_t debugNoti; 
+//    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
+//  }
   button_counter++;
   InitBoard( OB_READY );
   
@@ -1164,6 +1167,7 @@ static void simpleProfileChangeCB( uint8 paramID )
   
   uint8 newValue;
   globalCount = 0;
+  
   switch( paramID )
   {
     case SIMPLEPROFILE_CHAR1:
@@ -1184,7 +1188,11 @@ static void simpleProfileChangeCB( uint8 paramID )
       //waitBLEAck = newValue;
       
       break;
-
+    case SIMPLEPROFILE_CHAR6:
+      uint8 salivaId[SIMPLEPROFILE_CHAR6_LEN];
+      SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR6, salivaId );
+      writeTestPaperId(salivaId, SIMPLEPROFILE_CHAR6_LEN);
+      break;
     default:
       // should not reach here!
       break;
