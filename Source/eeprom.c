@@ -1,7 +1,5 @@
 #include "eeprom.h"
 
-//static char somedata = ['h', 'e', 'l', 'l', 'o', '\0'];
-
 void i2c_eeprom_write_byte(uint8 deviceaddress, uint8 eeaddress, uint8 data){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
     HalSensorWriteReg(eeaddress, &data, sizeof(data));

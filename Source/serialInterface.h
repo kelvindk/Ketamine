@@ -49,6 +49,10 @@ extern uint8 pktRxByteOffset;
 extern uint8 waitBLEAck;
 extern uint8 isLastPkt;
 
+extern uint16 retransmitSize;
+extern uint16 tmpRetransmitIdx;
+extern uint16 retransmitBuf[18];
+
 
 /*********************************************************************
  * FUNCTIONS

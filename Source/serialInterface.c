@@ -30,6 +30,10 @@ uint16 seqNum = 0;
 uint8 waitBLEAck = 0;
 uint8 blePktOffset = 0;
 
+uint16 retransmitSize = 0;
+uint16 tmpRetransmitIdx = 0;
+uint16 retransmitBuf[18];
+
 void SerialInterface_Init( uint8 task_id )
 {
   serialInterface_TaskID = task_id;
@@ -78,7 +82,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
   }
   
   numBytes = NPI_RxBufLen();
-  if(serialCameraState == 0x30){
+  if((serialCameraState&0xF0) == 0x30 ){
     uint8 pktRemain ;
     if(isLastPkt == 1){
       pktRemain = lastPktLen-pktRxByteOffset;
@@ -106,16 +110,15 @@ void cSerialPacketParser( uint8 port, uint8 events )
       if (sum == pktBuf[ pktRxByteOffset-2 ])
       {
         sendData(pktRxByteOffset);
-        if(tmpPktIdx % 2 == 0 || isLastPkt == 1)
-          waitBLEAck = 0xF0;
-        tmpPktIdx++;
-        waitCamera = 0;
-        
-//        debug[0] = tmpPktIdx & 0xFF;
-//        debug[1] = (tmpPktIdx >> 8) & 0xFF;
-//        debug[2] = pktCnt & 0xFF;
-//        debug[3] = (pktCnt >> 8)  & 0xFF;
-//        sendNotification(debug, 4);
+        if(serialCameraState == 0x30){
+          tmpPktIdx++;
+          //waitCamera = 0;
+        }
+        else{
+          tmpRetransmitIdx++;
+          tmpPktIdx = retransmitBuf[tmpRetransmitIdx];
+          waitCamera = 0;
+        }
       }
     }
   }

@@ -70,16 +70,9 @@
 #include "devinfoservice.h"
 #include "simpleGATTprofile.h"
 
-//#if defined( CC2540_MINIDK )
-//  #include "simplekeys.h"
-//#endif
-
 #include "peripheral.h"
-
 #include "gapbondmgr.h"
-
 #include "Ketamine.h"
-
 #include "serialInterface.h"
 
 #if defined FEATURE_OAD
@@ -98,9 +91,8 @@
 // How often to perform periodic event
 #define KTM_BROADCAST_EVT_PERIOD                        500
 #define KTM_PERIODIC_EVT_PERIOD                         1000
-#define KTM_ACQUIRE_PIC_PICTURE                         100
-#define KTM_COLORDELAY_PERIOD                           30
-#define KTM_SENDDATA_PERIOD                             500
+#define KTM_CHECKBUTTON_PEROID                          100
+#define KTM_SENDDATA_PERIOD                             400
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -112,10 +104,10 @@
 #define DEFAULT_DISCOVERABLE_MODE             GAP_ADTYPE_FLAGS_LIMITED
 
 // Minimum connection interval (units of 1.25ms, 80=100ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     80
+#define DEFAULT_DESIRED_MIN_CONN_INTERVAL     8
 
 // Maximum connection interval (units of 1.25ms, 800=1000ms) if automatic parameter update request is enabled
-#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     800
+#define DEFAULT_DESIRED_MAX_CONN_INTERVAL     8
 
 // Slave latency to use if automatic parameter update request is enabled
 #define DEFAULT_DESIRED_SLAVE_LATENCY         0
@@ -156,8 +148,6 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
-static uint8 button_counter = 0;
-
 static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
 
 static gaprole_States_t gapProfileState = GAPROLE_INIT;
@@ -173,8 +163,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '1'
-  0x34,   // '2'
+  0x30,   // '0'
+  0x34,   // '4'
 
   // connection interval range
   0x05,   // length of this data
@@ -224,14 +214,16 @@ static uint8 somedata1[] =
 };
 
 static uint8 version = 1;
-uint8 globalState = 1;
 static uint16 globalCount = 0;
 static uint8 directTerminate = 0;
+uint8 advCount = 0; 
+uint8 globalState = 1;
 int advMax = 600;
 int globalMax = 120;
-uint8 clrCnt = 0;
 uint8 disconnectCnt = 0;
 uint8 resetFlag = 0;
+uint8 buttonCounter = 0;
+uint8 tmpButtonCounter = 0;
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -241,18 +233,10 @@ static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 void initialParameter(void);
-void readColorAfterDelay(uint8 state);
 void getPictureData();
 void parseBLECmd(uint8 value);
 
-//#if defined( CC2540_MINIDK )
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys );
-//#endif
-
-#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-static char *bdAddr2Str ( uint8 *pAddr );
-#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-
 
 
 /*********************************************************************
@@ -410,20 +394,6 @@ void Ketamine_Init( uint8 task_id )
 
   // Register for all key events - This app will handle all key events
   RegisterForKeys( Ketamine_TaskID );
-  
-#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-
-#if defined FEATURE_OAD
-  #if defined (HAL_IMAGE_A)
-    HalLcdWriteStringValue( "BLE Peri-A", OAD_VER_NUM( _imgHdr.ver ), 16, HAL_LCD_LINE_1 );
-  #else
-    HalLcdWriteStringValue( "BLE Peri-B", OAD_VER_NUM( _imgHdr.ver ), 16, HAL_LCD_LINE_1 );
-  #endif // HAL_IMAGE_A
-#else
-  HalLcdWriteString( "BLE Peripheral", HAL_LCD_LINE_1 );
-#endif // FEATURE_OAD
-
-#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
 
   // Register callback with SimpleGATTprofile
   VOID SimpleProfile_RegisterAppCBs( &Ketamine_SimpleProfileCBs );
@@ -464,8 +434,6 @@ void Ketamine_Init( uint8 task_id )
  *
  * @return  events not processed
  */
-uint8 advCount = 0; 
-
 uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 {
 
@@ -519,9 +487,11 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       }
    
       advCount = advCount + 1;
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      //HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+      P0_4 = 1;
       ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
+      P0_4 = 0;
+      //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
       
 //      if(advCount >= advMax){
 //        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
@@ -573,10 +543,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 
     return (events ^ KTM_PERIODIC_EVT);
   }
-  if ( events & KTM_COLORDELAY_EVT ){
-    readColorAfterDelay(clrCnt);
-    return (events ^ KTM_COLORDELAY_EVT);
-  }
   if ( events & KTM_SENDDATA_EVT ){
     return (events ^ KTM_SENDDATA_EVT);
   }
@@ -598,11 +564,9 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 {
   switch ( pMsg->event )
   {
-  //#if defined( CC2540_MINIDK )
     case KEY_CHANGE:
       Ketamine_HandleKeys( ((keyChange_t *)pMsg)->state, ((keyChange_t *)pMsg)->keys );
       break;
-  //#endif // #if defined( CC2540_MINIDK )
 
   default:
     // do nothing
@@ -610,7 +574,6 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
   }
 }
 
-//#if defined( CC2540_MINIDK )
 /*********************************************************************
  * @fn      Ketamine_HandleKeys
  *
@@ -625,9 +588,7 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  */
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 {
-//  uint8 current_adv_enabled_status;
-//  GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
-  
+  buttonCounter++;
   if(gapProfileState != GAPROLE_CONNECTED){
     uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
     if( result == INVALID_EVENT_ID){
@@ -639,54 +600,8 @@ static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 //    attHandleValueNoti_t debugNoti; 
 //    sendReadBuf(&debugNoti, &button_counter, 1, 0xDD);
 //  }
-  button_counter++;
   InitBoard( OB_READY );
-  
-//  if ( keys & HAL_KEY_SW_1 )
-//  {
-//    SK_Keys |= SK_KEY_LEFT;
-//  }
-//
-//  if ( keys & HAL_KEY_SW_2 )
-//  {
-//
-//    SK_Keys |= SK_KEY_RIGHT;
-
-    // if device is not in a connection, pressing the right key should toggle
-    // advertising on and off
-    // Note:  If PLUS_BROADCASTER is define this condition is ignored and
-    //        Device may advertise during connections as well. 
-//#ifndef PLUS_BROADCASTER  
-//    if( gapProfileState != GAPROLE_CONNECTED )
-//    {
-//#endif // PLUS_BROADCASTER
-//      uint8 current_adv_enabled_status;
-//      uint8 new_adv_enabled_status;
-//
-//      //Find the current GAP advertisement status
-//      GAPRole_GetParameter( GAPROLE_ADVERT_ENABLED, &current_adv_enabled_status );
-//
-//      if( current_adv_enabled_status == FALSE )
-//      {
-//        new_adv_enabled_status = TRUE;
-//      }
-//      else
-//      {
-//        new_adv_enabled_status = FALSE;
-//      }
-//
-//      //change the GAP advertisement status to opposite of current status
-//      GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &new_adv_enabled_status );
-//#ifndef PLUS_BROADCASTER
-//    }
-//#endif // PLUS_BROADCASTER
-//  }
-//
-//  // Set the value of the keys state to the Simple Keys Profile;
-//  // This will send out a notification of the keys state if enabled
-//  SK_SetParameter( SK_KEY_ATTR, sizeof ( uint8 ), &SK_Keys );
 }
-//#endif // #if defined( CC2540_MINIDK )
 
 /*********************************************************************
  * @fn      peripheralStateNotificationCB
@@ -698,11 +613,7 @@ static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
  * @return  none
  */
 static void peripheralStateNotificationCB( gaprole_States_t newState )
-{
-#ifdef PLUS_BROADCASTER
-  static uint8 first_conn_flag = 0;
-#endif // PLUS_BROADCASTER
-  
+{ 
   
   switch ( newState )
   {
@@ -729,19 +640,11 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
         DevInfo_SetParameter(DEVINFO_SYSTEM_ID, DEVINFO_SYSTEM_ID_LEN, systemId);
 
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          // Display device address
-          HalLcdWriteString( bdAddr2Str( ownAddress ),  HAL_LCD_LINE_2 );
-          HalLcdWriteString( "Initialized",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;
 
     case GAPROLE_ADVERTISING:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Advertising",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;
 
@@ -749,67 +652,32 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       {
         //reset adv counter once connected
         advCount = 0;
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Connected",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          // Set timer for first periodic event
-          // osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, 4000 );
-          
-#ifdef PLUS_BROADCASTER
-        // Only turn advertising on for this state when we first connect
-        // otherwise, when we go from connected_advertising back to this state
-        // we will be turning advertising back on.
-        if ( first_conn_flag == 0 ) 
-        {
-          uint8 adv_enabled_status = 1;
-          GAPRole_SetParameter(GAPROLE_ADVERT_ENABLED, sizeof(uint8), &adv_enabled_status); // Turn on Advertising
-          first_conn_flag = 1;
-        }
-#endif // PLUS_BROADCASTER
+        HalLedInit();
+        HalLedSet(HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
       }
       break;
 
     case GAPROLE_CONNECTED_ADV:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Connected Advertising",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;      
     case GAPROLE_WAITING:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Disconnected",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;
 
     case GAPROLE_WAITING_AFTER_TIMEOUT:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Timed Out",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-          
-#ifdef PLUS_BROADCASTER
-        // Reset flag for next connection.
-        first_conn_flag = 0;
-#endif //#ifdef (PLUS_BROADCASTER)
       }
       break;
 
     case GAPROLE_ERROR:
       { 
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "Error",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;
 
     default:
       {
-        #if (defined HAL_LCD) && (HAL_LCD == TRUE)
-          HalLcdWriteString( "",  HAL_LCD_LINE_3 );
-        #endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
       }
       break;
 
@@ -817,10 +685,10 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
 
   gapProfileState = newState;
 
-#if !defined( CC2540_MINIDK )
-  VOID gapProfileState;     // added to prevent compiler warning with
-                            // "CC2540 Slave" configurations
-#endif
+//#if !defined( CC2540_MINIDK )
+//  VOID gapProfileState;     // added to prevent compiler warning with
+//                            // "CC2540 Slave" configurations
+//#endif
 
 
 }
@@ -873,14 +741,17 @@ static void performPeriodicTask( void )
   
   
   if(globalState < 3){
-    eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
+    //HalLedInit();
+    eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 4);
     if(eepResult == TRUE ){
-      sendReadBuf(&noti, buf, 5, 0xFB);
-      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
+      sendReadBuf(&noti, buf, 4, 0xFB);
+      //HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
+      P0_4 = 1;
     }
     else{
       sendReadBuf(&noti, buf, 0, 0xFA);
-      HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
+      //HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
+      P0_4 = 0;
     }
   }
   
@@ -894,9 +765,13 @@ static void performPeriodicTask( void )
   switch (globalState){
   case 1:
 
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+    //HalLedSet( HAL_LED_4 , HAL_LED_MODE_ON );
+    P0SEL &= ~0x08;
+    P0DIR |= 0x08;
+    P0_3 = 1;
     ST_HAL_DELAY(1000);
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+    P0_3 = 0;
+    //HalLedSet( HAL_LED_4 , HAL_LED_MODE_OFF );
     
     initialParameter();
     break;
@@ -922,32 +797,6 @@ static void performPeriodicTask( void )
       }
     }else{
       sendReadBuf(&noti, buf, 2, 0xFE);
-    }
-    break;
-    
-  case 3:
-    //P0SEL &= ~0x38;
-    //P0DIR |= 0x38;
-    P1_2 = 1;
-    
-    if(clrCnt == 0){
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      notiColor.handle = 0x2E;  
-      notiColor.len = 17;
-      for(i = 0; i < 17; i++){
-        notiColor.value[i] = 0;
-      }
-      HalColorInit(COLOR_SENSOR_ADDR); //0x39
-      setReadReg(COLOR_SENSOR_ADDR);
-      osal_start_timerEx( Ketamine_TaskID, KTM_COLORDELAY_EVT, KTM_COLORDELAY_PERIOD );
-    }
-    else{
-      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1250);
-      HalColorInit(COLOR_SENSOR_ADDR2);
-      setReadReg(COLOR_SENSOR_ADDR2);
-      osal_start_timerEx( Ketamine_TaskID, KTM_COLORDELAY_EVT, KTM_COLORDELAY_PERIOD );
     }
     break;
     
@@ -980,7 +829,7 @@ static void performPeriodicTask( void )
     NPI_InitTransport(cSerialPacketParser);
     
     HalLedInit();
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
     P1_3 = 1;
     ST_HAL_DELAY(1250);
     
@@ -1030,52 +879,75 @@ static void performPeriodicTask( void )
       break;
     }
     case 0x30:{
-      waitCamera++;
-      waitCamera %= 20;
-      if(waitCamera == 19){
-        //serialCameraState = 0x10;
-        if(tmpPktIdx >= 2)
-          tmpPktIdx -= 2;
-        else
-          tmpPktIdx = 0;
-        waitBLEAck = 0;
-        break;
+      if(tmpPktIdx < pktCnt){
+        getPictureData();
       }
+//      waitCamera++;
+//      waitCamera %= 10;
+//      if(waitCamera == 9){
+//        //serialCameraState = 0x10;
+//        tmpPktIdx = 0;
+//        waitBLEAck = 0;
+//        break;
+//      }
       
-      if(waitBLEAck == 0){
-        if(tmpPktIdx < pktCnt){
-          getPictureData();
-        }
-      }else if(waitBLEAck == 5){
-        //tmpPktIdx++;
-        waitBLEAck = 0;
-        waitCamera = 0;
-//        if(tmpPktIdx == pktCnt-1)
-//          isLastPkt = 1;
-//        else if(tmpPktIdx == pktCnt){
-//          globalState = 7;
-//          SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-//          serialCameraState = 0;
+//      if(waitBLEAck == 0){
+//        if(tmpPktIdx < pktCnt){
+//          getPictureData();
 //        }
-//        else{
-//        }
-      }
+//      }else if(waitBLEAck == 5){
+//        waitBLEAck = 0;
+//        waitCamera = 0;
+//        globalState = 7;
+//        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//        serialCameraState = 0;
+//      }else{
+//      }
+      
       if(tmpPktIdx == pktCnt-1){
-          isLastPkt = 1;
+        isLastPkt = 1;
       }
       else if(tmpPktIdx == pktCnt){
-        globalState = 7;
-        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
-        serialCameraState = 0;
+        sendReadBuf(&noti, buf, 0, 0xA9);
+        serialCameraState = 0x31;
       }
       else{
         isLastPkt = 0;
       }
      
-
-//      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-//      ST_HAL_DELAY(1000);
-//      HalLedSet( HAL_LED_2, HAL_LED_MODE_OFF );
+      break;
+    }
+    case 0x31:{
+      if(retransmitSize != 0){
+        if(tmpRetransmitIdx < retransmitSize){
+          if(tmpPktIdx == pktCnt-1){
+            isLastPkt = 1;
+          }
+          getPictureData();
+        }
+        else{
+          sendReadBuf(&noti, buf, 0, 0xA9);
+          retransmitSize = 0;
+          tmpRetransmitIdx = 0;
+        }
+      }
+      if(waitBLEAck == 5){
+        waitBLEAck = 0;
+        waitCamera = 0;
+        globalState = 7;
+        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+        serialCameraState = 0;
+      }
+//      waitCamera++;
+//      waitCamera %= 20;
+//      if(waitCamera == 19){
+//        waitBLEAck = 0;
+//        waitCamera = 0;
+//        globalState = 7;
+//        SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+//        serialCameraState = 0;
+//      }
+      
       break;
     }
     }
@@ -1107,49 +979,6 @@ static void performPeriodicTask( void )
   }
 } 
 
-void readColorAfterDelay(uint8 state){
-  if(state == 0){
-    struct RGBC rgbc = ReadRGB(COLOR_SENSOR_ADDR);
-    notiColor.value[0] = 0xFF;
-    notiColor.value[1] = rgbc.red & 0xFF;
-    notiColor.value[2] = (rgbc.red >> 8) & 0xFF;
-    notiColor.value[3] = rgbc.green & 0xFF;
-    notiColor.value[4] = (rgbc.green >> 8) & 0xFF;
-    notiColor.value[5] = rgbc.blue & 0xFF;
-    notiColor.value[6] = (rgbc.blue >> 8) & 0xFF;
-    notiColor.value[7] = rgbc.clear & 0xFF;
-    notiColor.value[8] = (rgbc.clear >> 8) & 0xFF;
-    clrCnt = 1;
-    HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );     //(4) larry
-    P1_2 = 0;
-    
-    eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 5);
-    if(eepResult == TRUE ){
-      sendReadBuf(&noti, buf, 5, 0xFB);
-      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
-    }
-    else{
-      sendReadBuf(&noti, buf, 0, 0xFA);
-      HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
-    }
-  }
-  else{
-    struct RGBC rgbc2 = ReadRGB(COLOR_SENSOR_ADDR2);
-    notiColor.value[9] = rgbc2.red & 0xFF;
-    notiColor.value[10] = (rgbc2.red >> 8) & 0xFF;
-    notiColor.value[11] = rgbc2.green & 0xFF;
-    notiColor.value[12] = (rgbc2.green >> 8) & 0xFF;
-    notiColor.value[13] = rgbc2.blue & 0xFF;
-    notiColor.value[14] = (rgbc2.blue >> 8) & 0xFF;
-    notiColor.value[15] = rgbc2.clear & 0xFF;
-    notiColor.value[16] = (rgbc2.clear >> 8) & 0xFF;
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );       //  (2) larry
-    GATT_Notification(0, &notiColor, FALSE);
-    clrCnt = 0;
-    P1_2 = 0;
-  }
-}
-
 /*********************************************************************
  * @fn      simpleProfileChangeCB
  *
@@ -1161,16 +990,16 @@ void readColorAfterDelay(uint8 state){
  */
 static void simpleProfileChangeCB( uint8 paramID )
 {
-  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
-  ST_HAL_DELAY(1000);
-  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
+//  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+//  ST_HAL_DELAY(1000);
+//  HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_OFF );
   
   uint8 newValue;
   globalCount = 0;
   
   switch( paramID )
   {
-    case SIMPLEPROFILE_CHAR1:
+  case SIMPLEPROFILE_CHAR1:{
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR1, &newValue );
       globalState = newValue;
       
@@ -1181,82 +1010,38 @@ static void simpleProfileChangeCB( uint8 paramID )
       }
 
       break;
-
-    case SIMPLEPROFILE_CHAR3:
+  }
+  case SIMPLEPROFILE_CHAR3:{
       SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR3, &newValue );
       parseBLECmd(newValue);
-      //waitBLEAck = newValue;
       
       break;
-    case SIMPLEPROFILE_CHAR6:
-      uint8 salivaId[SIMPLEPROFILE_CHAR6_LEN];
-      SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR6, salivaId );
-      writeTestPaperId(salivaId, SIMPLEPROFILE_CHAR6_LEN);
+  }
+  case SIMPLEPROFILE_CHAR6:{
+      uint8 command[SIMPLEPROFILE_CHAR6_LEN];
+      SimpleProfile_GetParameter( SIMPLEPROFILE_CHAR6, command);
+      if(command[0] == 0xA1){
+        writeTestPaperId(command+1, 4);
+      }
+      else if(command[0] == 0xA3){
+        retransmitSize = command[1];
+        tmpRetransmitIdx = 0;
+        int i;
+        for(i = 0; i < retransmitSize; i++){
+          retransmitBuf[i] = command[2+i];
+        }
+        tmpPktIdx = retransmitBuf[0];
+        if(tmpPktIdx == pktCnt-1){
+          isLastPkt = 1;
+        }
+      }
       break;
-    default:
+  }
+  default:{
       // should not reach here!
-      break;
+    break;
   }
-}
-
-#if (defined HAL_LCD) && (HAL_LCD == TRUE)
-/*********************************************************************
- * @fn      bdAddr2Str
- *
- * @brief   Convert Bluetooth address to string. Only needed when
- *          LCD display is used.
- *
- * @return  none
- */
-char *bdAddr2Str( uint8 *pAddr )
-{
-  uint8       i;
-  char        hex[] = "0123456789ABCDEF";
-  static char str[B_ADDR_STR_LEN];
-  char        *pStr = str;
-
-  *pStr++ = '0';
-  *pStr++ = 'x';
-
-  // Start from end of addr
-  pAddr += B_ADDR_LEN;
-
-  for ( i = B_ADDR_LEN; i > 0; i-- )
-  {
-    *pStr++ = hex[*--pAddr >> 4];
-    *pStr++ = hex[*pAddr & 0x0F];
   }
-  *pStr = 0;
-  return str;
-}
-#endif // (defined HAL_LCD) && (HAL_LCD == TRUE)
-
-/*********************************************************************
- * @fn      OpenUART
- *
- * @brief   Open Pic32 when connected.
- *
- * @return  none
- */
-void OpenUART(void)
-{
-  HalLedSet( HAL_LED_1 | HAL_LED_2 |  HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
-  //HalUARTInit();              // Init UART on ISR
-  //NPI_InitTransport(cSerialPacketParser);
-}
-
-/*********************************************************************
- * @fn      CloseUART
- *
- * @brief   Close Pic32 when disconnected.
- *
- * @return  none
- */
-void CloseUART(void)
-{
-  HalLedSet( HAL_LED_1 | HAL_LED_2 | HAL_LED_3 | HAL_LED_4, HAL_LED_MODE_OFF );
-  // P1SEL &= ~0x30;       // Turn off UART on P1_4 and p1_5
-  // P1DIR &= ~0x30;
 }
 
 /*********************************************************************
@@ -1267,7 +1052,6 @@ void initialParameter(void){
   isSecondSaliva = FALSE;
   eepResult = false;
   globalState = 1;
-  clrCnt = 0;
   disconnectCnt = 0;
   P1_3 = 0;
 }
