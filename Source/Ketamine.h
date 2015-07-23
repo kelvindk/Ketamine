@@ -65,6 +65,10 @@ extern "C"
 #define KTM_WAIT_BLOWER                                   0x0001
 #define KTM_SENSE_SALIVA                                  0x0002
 #define KTM_SENSE_COLOR                                   0x0003
+   
+// Picture taking modes
+#define KTM_PIC_PRECAPTURE                                0x01
+#define KTM_PIC_CAPTURE                                   0x02
 
 /*********************************************************************
  * MACROS
