@@ -77,7 +77,7 @@ static void SerialInterface_ProcessOSALMsg( osal_event_hdr_t *pMsg )
 
 void cSerialPacketParser( uint8 port, uint8 events )
 {
-  if((globalState != 6) || (globalState != 3)){
+  if((globalState != 6) && (globalState != 3)){
     return;
   }
   

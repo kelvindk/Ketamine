@@ -91,9 +91,10 @@
 // How often to perform periodic event
 #define KTM_BROADCAST_EVT_PERIOD                        500
 #define KTM_PERIODIC_EVT_PERIOD                         1000
-#define KTM_DEFAULT_EVT_PERIOD                          1800
+#define KTM_DEFAULT_EVT_PERIOD                          1100
 #define KTM_CHECKINTERRUPT_PEROID                       500
 #define KTM_SENDDATA_PERIOD                             400
+#define KTM_DUMMY_TIMER_PERIOD                          3000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -165,7 +166,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x34,   // '4'
+  0x33,   // '4'
 
   // connection interval range
   0x05,   // length of this data
@@ -205,18 +206,20 @@ static uint8 advertData[] =
 // GAP GATT Attributes
 static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
-static uint8 version = 1;
+static uint8 version = 3;
 static bool isAwake = false;
-static uint16 globalCount = 0;
+static int globalCount = 0;
 static uint8 directTerminate = 0;
-uint8 advCount = 0; 
+int advCount = 0; 
 uint8 globalState = 1;
 int advMax = 600;
 int globalMax = 120;
 uint8 disconnectCnt = 0;
 uint8 resetFlag = 0;
 uint8 interruptCounter = 0;
+int lastInterruptTime = 0;
 uint8 lowPowerWarnCount = 0;
+
 
 /*********************************************************************
  * LOCAL FUNCTIONS
@@ -486,6 +489,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       }
       
       if(directTerminate == 1){
+        initialParameter();   // 7/26
         directTerminate = 0;
         uint8 disabled = FALSE;
         GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
@@ -500,17 +504,28 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       ST_HAL_DELAY(1000);
       HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
       
-//      if(advCount >= advMax){
-//        HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-//        advCount = 0;
-//        globalState = 1;
-//        globalCount = 0; 
-//        uint8 disabled = FALSE;
-//        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-//        osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
-//        isAwake = false;      
-//        return (events ^ KTM_PERIODIC_EVT);
-//      }
+      if(advCount >= advMax){
+        // DEBUG
+        int debugCount = 0;
+        for(; debugCount < 5; debugCount++){
+          HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
+          ST_HAL_DELAY(1000);
+          HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
+        }
+ 
+        HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
+        advCount = 0;
+        //globalState = 1;
+        globalCount = 0; 
+        uint8 disabled = FALSE;
+        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+        osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
+        isAwake = false;
+        initialParameter();
+        InitBoard( OB_READY );
+        return (events ^ KTM_PERIODIC_EVT);
+      }
+      
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -541,6 +556,7 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
     // Restart timer
     else if( KTM_PERIODIC_EVT_PERIOD )
     {
+      advCount = 0;
       performPeriodicTask();
       if((globalState == 6 || globalState == 3) && (serialCameraState == 0x30 || serialCameraState == 0x31)){
         osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_SENDDATA_PERIOD);
@@ -565,27 +581,34 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
 //    }
     if(adcvalue > 5){
       InitBoard( OB_READY );
+      interruptCounter = 0;
       return (events ^ KTM_CHECKINTERRUPT_EVT);
     }
     else{
       interruptCounter++;
-      if(interruptCounter < 5){
+      if(interruptCounter < 3){
         osal_start_timerEx( Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT, KTM_CHECKINTERRUPT_PEROID);
       }
       else{
         if(isAwake == true){
-          if(globalState != 6){
+          if(globalState != 6 && globalState != 3 && globalState != 2 && globalState != 7){
             systemSleep();
           }
         }
         else{
           systemWakeUp();
         }
+        //lastInterruptTime = osal_GetSystemClock();
+        //osal_start_timerEx( Ketamine_TaskID, KTM_DUMMY_EVT, KTM_DUMMY_TIMER_PERIOD);
         interruptCounter = 0;
-        InitBoard( OB_READY );
       }
+      InitBoard( OB_READY );
       return (events ^ KTM_CHECKINTERRUPT_EVT);
     }
+  }
+  
+  if (events & KTM_DUMMY_EVT){
+    return (events ^ KTM_DUMMY_EVT);
   }
 
   // Discard unknown events
@@ -629,14 +652,14 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg )
  */
 static void Ketamine_HandleKeys( uint8 shift, uint8 keys )
 {
-  uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT);
-  if(result == INVALID_EVENT_ID){
     interruptCounter = 0;
-    osal_start_timerEx( Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT, KTM_CHECKINTERRUPT_PEROID);
-  }
-  else{
+  //int currentTime = osal_GetSystemClock();
+  //if(currentTime - lastInterruptTime > KTM_DUMMY_TIMER_PERIOD){
+    uint8 result =  osal_stop_timerEx(Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT);
+    if(result == INVALID_EVENT_ID){
+      osal_start_timerEx( Ketamine_TaskID, KTM_CHECKINTERRUPT_EVT, KTM_CHECKINTERRUPT_PEROID);
+    }
     InitBoard( OB_READY );
-  }
 }
 
 /*********************************************************************
@@ -706,7 +729,8 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       break;
 
     case GAPROLE_ERROR:
-      { 
+      {
+        InitBoard( OB_READY ); // Try
       }
       break;
 
@@ -762,7 +786,7 @@ static void performPeriodicTask( void )
   globalCount++;
   
 //  if(globalCount > globalMax){
-//    // Terminate after globalState is not changed for 10 min.
+//    // Terminate after globalState is not changed for 2 min.
 //    initialParameter();
 //    GAPRole_TerminateConnection();
 //    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
@@ -776,8 +800,8 @@ static void performPeriodicTask( void )
     break;
     
   case 2:
-    HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1000);
+    //HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+    //ST_HAL_DELAY(1000);
     //HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
@@ -865,47 +889,49 @@ static void performPeriodicTask( void )
 static void defaultCheckTask( void ){
   attHandleValueNoti_t noti;
   uint8 buf[20];
-  //P1_2 = 1;
   eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 4);
   if(eepResult == TRUE ){
     if(gapProfileState == GAPROLE_CONNECTED ){
       sendReadBuf(&noti, buf, 4, 0xFB);
     }
-    HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
-    if( globalState >= 2 ){
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_3, HAL_LED_MODE_OFF );
+    if( globalState == 2 || globalState == 3 || globalState == 6 || globalState == 7){
+      HalLedSet( HAL_LED_4, HAL_LED_MODE_TOGGLE );
+    }
+    else{
+      HalLedSet( HAL_LED_4 , HAL_LED_MODE_ON );
     }
   }
   else{
     if(gapProfileState == GAPROLE_CONNECTED ){
       sendReadBuf(&noti, buf, 0, 0xFA);
     }
-    HalLedSet( HAL_LED_3, HAL_LED_MODE_OFF);
+    HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
   }
-  //P1_2 = 0;
+  
   if(isAwake == true){
-    HalLedSet( HAL_LED_4 , HAL_LED_MODE_ON);
+    if(P0_3 == 0){
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
+    }
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
-    uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_8);
-  //buf[0] = adcvalue & 0xFF;
-  //buf[1] = (adcvalue >> 8) & 0xFF;
-  //sendReadBuf(&noti, buf, 2, 0xBB);
+    uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
+    //buf[0] = adcvalue & 0xFF;
+    //buf[1] = (adcvalue >> 8) & 0xFF;
+    //sendReadBuf(&noti, buf, 2, 0xBB);
     if(adcvalue > 12){
       lowPowerWarnCount = 0;
     }
     else{
       lowPowerWarnCount++;
       ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF );
+      HalLedSet( HAL_LED_3, HAL_LED_MODE_OFF );
       if(lowPowerWarnCount > 15){
         systemSleep();
       }
     }
   }
   else{
-    HalLedSet( HAL_LED_4 , HAL_LED_MODE_OFF);
+    HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF);
   }
 }
 
@@ -971,14 +997,14 @@ static void simpleProfileChangeCB( uint8 paramID )
 }
 
 static void systemWakeUp( void ){
-  uint8 result1 =  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
+  uint8 result1 = osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
   uint8 result2 = osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
   if(result1 == INVALID_EVENT_ID){
     initialParameter();
   }
   isAwake = true;
   osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
-  osal_start_timerEx( Ketamine_TaskID, KTM_DEFAULT_EVT, KTM_DEFAULT_EVT_PERIOD);
+  osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
 }
 
 static void systemSleep( void ){
@@ -986,7 +1012,12 @@ static void systemSleep( void ){
   GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
   osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
   osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
+  if( gapProfileState == GAPROLE_CONNECTED )
+  {
+    GAPRole_TerminateConnection();
+  }
   HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
+  initialParameter();
   isAwake = false;  
 }
 
@@ -998,8 +1029,10 @@ void initialParameter(void){
   isSecondSaliva = FALSE;
   eepResult = false;
   globalState = 1;
+  SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
   disconnectCnt = 0;
   P1_3 = 0;
+  //InitBoard( OB_READY );
 }
 
 void parseBLECmd(uint8 value){
@@ -1022,13 +1055,13 @@ static void takePicture(uint8 mode){
   switch(mode){
   case KTM_PIC_PRECAPTURE:{
     HalLedSet(HAL_LED_2, HAL_LED_MODE_ON);
+    HalLedSet(HAL_LED_1, HAL_LED_MODE_OFF);
     break;
   }
-  case KTM_PIC_CAPTURE:{
-    HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
-    break;
-  }
+  case KTM_PIC_CAPTURE:
   default:{
+    HalLedSet(HAL_LED_1, HAL_LED_MODE_ON);
+    HalLedSet(HAL_LED_2, HAL_LED_MODE_OFF);
     break;
   }
   }

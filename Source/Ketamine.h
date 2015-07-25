@@ -59,6 +59,7 @@ extern "C"
 #define KTM_DEFAULT_EVT                                   0x0002
 #define KTM_PERIODIC_EVT                                  0x0004
 #define KTM_CHECKINTERRUPT_EVT                            0x0008
+#define KTM_DUMMY_EVT                                     0x0010
 
    
 // State of ketamine process ID
