@@ -82,7 +82,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
   }
   
   numBytes = NPI_RxBufLen();
-  if((serialCameraState&0xF0) == 0x30 ){
+  if((serialCameraState&0xF0) == 0x30 || (serialCameraState&0xF0) == 0x31){    // BUg discovered by larry on 7/26
     uint8 pktRemain ;
     if(isLastPkt == 1){
       pktRemain = lastPktLen-pktRxByteOffset;
@@ -112,12 +112,33 @@ void cSerialPacketParser( uint8 port, uint8 events )
         sendData(pktRxByteOffset);
         if(serialCameraState == 0x30){
           tmpPktIdx++;
+          
+          if(tmpPktIdx == pktCnt){
+            //getPictureData(0xF0F0);
+            serialCameraState = 0x31;
+            isLastPkt = 0;
+            waitCamera = 0;
+            if( retransmitSize != 0 ){
+              tmpRetransmitIdx = 0;
+              tmpPktIdx = retransmitBuf[0];
+              if(tmpPktIdx == pktCnt-1){
+                isLastPkt = 1;
+              }
+            }
+//            retransmitSize = 1;
+//            tmpRetransmitIdx = 0;
+//            retransmitBuf[0] = 6;
+//            //retransmitBuf[1] = 19;
+//            tmpPktIdx = retransmitBuf[0];
+            return;
+          }
         }
         else{
           tmpRetransmitIdx++;
           tmpPktIdx = retransmitBuf[tmpRetransmitIdx];
           waitCamera = 0;
         }
+        pktRxByteOffset = 0;
       }
     }
   }
@@ -185,7 +206,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
           lastPktLen =  picTotalLen % (PIC_PKT_LEN-6) + 6;
         }
         serialCameraState = 0x24;
-        waitCamera = 0;
+        //waitCamera = 0;
         tmpPktIdx = 0;
         pktRxByteOffset = 0;
         isLastPkt = 0;
@@ -296,7 +317,6 @@ void notifyPicInfo(void){
   tempBuf[19] = sum;
   if( 0xFF == sendNotification(tempBuf, 20) )
     waitBLEAck = 0xF0;
-  // set send data timer
 }
 
 uint8 sendData(uint16 diff)
