@@ -91,8 +91,8 @@
 // How often to perform periodic event
 #define KTM_BROADCAST_EVT_PERIOD                        500
 #define KTM_PERIODIC_EVT_PERIOD                         1000
-#define KTM_DEFAULT_EVT_PERIOD                          1100
-#define KTM_CHECKINTERRUPT_PEROID                       500
+#define KTM_DEFAULT_EVT_PERIOD                          1000
+#define KTM_CHECKINTERRUPT_PEROID                       250
 #define KTM_SENDDATA_PERIOD                             400
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
@@ -164,7 +164,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x33,   // '3'
+  0x31,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -206,9 +206,11 @@ static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
 static bool isAwake = false;
 static bool directTerminate = false;
-static uint8 version = 5;
+static uint8 version = 8;
 static int advMax = 600;
+static int globalMax = 300;
 
+static int globalCount = 0;
 int advCount = 0; 
 uint8 globalState = 1;
 uint8 disconnectCnt = 0;
@@ -513,7 +515,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
         HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
         advCount = 0;
         //globalState = 1;
-        //globalCount = 0; 
         uint8 disabled = FALSE;
         GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
         osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
@@ -700,6 +701,7 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
       {
         //reset adv counter once connected
         advCount = 0;
+        globalCount = 0;
       }
       break;
 
@@ -916,6 +918,16 @@ static void defaultCheckTask( void ){
   else{
     HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF);
   }
+  
+  if(gapProfileState == GAPROLE_CONNECTED){
+    globalCount++;
+    if(globalCount > globalMax){
+      // Terminate after globalState is not changed for 5 min.
+      initialParameter();
+      GAPRole_TerminateConnection();
+      SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
+    }
+  }
 }
 
 /*********************************************************************
@@ -930,7 +942,7 @@ static void defaultCheckTask( void ){
 static void simpleProfileChangeCB( uint8 paramID )
 { 
   uint8 newValue;
-  //globalCount = 0;
+  globalCount = 0;
   
   switch( paramID )
   {
@@ -994,6 +1006,7 @@ static void systemWakeUp( void ){
 }
 
 static void systemSleep( void ){
+  //globalCount = 0;
   uint8 disabled = FALSE;
   GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
   osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
@@ -1123,10 +1136,10 @@ static void takePicture(uint8 mode){
       else if(tmpPktIdx == pktCnt){
         sendReadBuf(&noti, buf, 0, 0xA9);
         serialCameraState = 0x31;
-
         isLastPkt = 0;
         waitCamera = 0;
         if( retransmitSize != 0 ){
+          tmpRetransmitIdx = 0;
           tmpPktIdx = retransmitBuf[0];
           if(tmpPktIdx == pktCnt-1){
             isLastPkt = 1;
@@ -1169,7 +1182,7 @@ static void takePicture(uint8 mode){
             isLastPkt = 1;
           }
           else{
-            isLastPkt = 1;
+            isLastPkt = 0;
           }
           getPictureData(tmpPktIdx);
         }
