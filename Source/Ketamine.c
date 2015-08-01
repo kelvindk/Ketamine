@@ -164,7 +164,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x31,   // '3'
+  0x32,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -206,7 +206,7 @@ static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
 static bool isAwake = false;
 static bool directTerminate = false;
-static uint8 version = 8;
+static uint8 version = 10;
 static int advMax = 600;
 static int globalMax = 300;
 
@@ -505,12 +505,6 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       if(advCount >= advMax){
         // DEBUG
         initialParameter();
-//        int debugCount = 0;
-//        for(; debugCount < 5; debugCount++){
-//          HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON );
-//          ST_HAL_DELAY(1000);
-//          HalLedSet( HAL_LED_3 , HAL_LED_MODE_OFF );
-//        }
  
         HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
         advCount = 0;
@@ -894,25 +888,37 @@ static void defaultCheckTask( void ){
   }
   
   if(isAwake == true){
-    if(P0_3 == 0){
-      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
-    }
+//    if(P0_3 == 0 && lowPowerWarnCount == 0){
+//      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
+//    }
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
-    //buf[0] = adcvalue & 0xFF;
-    //buf[1] = (adcvalue >> 8) & 0xFF;
-    //sendReadBuf(&noti, buf, 2, 0xBB);
-    if(adcvalue > 12){
-      lowPowerWarnCount = 0;
+//    buf[0] = adcvalue & 0xFF;
+//    buf[1] = (adcvalue >> 8) & 0xFF;
+//    sendReadBuf(&noti, buf, 2, 0xBB);
+    if(globalState != 6 && globalState != 3){
+      if(adcvalue > 0x58)
+        lowPowerWarnCount = 0;
+      else
+        lowPowerWarnCount++;
     }
     else{
-      lowPowerWarnCount++;
+      if(adcvalue > 0x53)
+        lowPowerWarnCount = 0;
+      else
+        lowPowerWarnCount++;
+    }
+    
+    if(lowPowerWarnCount != 0){
       ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_3, HAL_LED_MODE_OFF );
-      if(lowPowerWarnCount > 15){
+      HalLedSet( HAL_LED_3, HAL_LED_MODE_TOGGLE );
+      if(lowPowerWarnCount > 30){
         systemSleep();
       }
+    }
+    else{
+      HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
     }
   }
   else{
@@ -1006,18 +1012,22 @@ static void systemWakeUp( void ){
 }
 
 static void systemSleep( void ){
-  //globalCount = 0;
-  uint8 disabled = FALSE;
-  GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-  osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
   osal_stop_timerEx(Ketamine_TaskID, KTM_DEFAULT_EVT);
+  HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
   if( gapProfileState == GAPROLE_CONNECTED )
   {
     GAPRole_TerminateConnection();
+    directTerminate = true;
+    resetFlag = 1;
   }
-  HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
+  else{
+    osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
+    uint8 disabled = FALSE;
+    GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
+    isAwake = false;
+  }
   //initialParameter();
-  isAwake = false;  
+  //isAwake = false;  
 }
 
 /*********************************************************************
