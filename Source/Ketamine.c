@@ -205,9 +205,9 @@ static uint8 attDeviceName[GAP_DEVICE_NAME_LEN] = "Simple BLE Peripheral";
 
 static bool isAwake = false;
 static bool directTerminate = false;
-static bool isLowPower = false;
+static uint8 isLowPower = 0;
 
-static uint8 version = 11;
+static uint8 version = 12;
 static int advMax = 600;
 static int globalMax = 300;
 
@@ -860,7 +860,12 @@ static void defaultCheckTask( void ){
   }
   else{
     if(gapProfileState == GAPROLE_CONNECTED ){
-      sendReadBuf(&noti, buf, 0, 0xFA);
+      buf[0] = globalState; // For debug
+      buf[1] = isLowPower;
+      buf[2] = serialCameraState;
+      buf[3] = tmpRetransmitIdx;
+      buf[4] = retransmitSize;
+      sendReadBuf(&noti, buf, 5, 0xFA);
     }
     
     HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
@@ -870,29 +875,30 @@ static void defaultCheckTask( void ){
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
-//    buf[0] = adcvalue & 0xFF;
-//    buf[1] = (adcvalue >> 8) & 0xFF;
-//    sendReadBuf(&noti, buf, 2, 0xBB);
+    buf[0] = adcvalue & 0xFF;
+    buf[1] = (adcvalue >> 8) & 0xFF;
+    sendReadBuf(&noti, buf, 2, 0xBB);
     if(globalState != 6 && globalState != 3){
-      if(adcvalue <= 0x58)
-        isLowPower = true;
+      if(adcvalue <= 0x0058)
+        isLowPower = 1;
     }
     else{
-      if(adcvalue <= 0x52)
-        isLowPower = true;
+      if(adcvalue <= 0x0052)
+        isLowPower = 1;
     }
     
-    if(adcvalue > 0x58){
-       isLowPower = false;
+    if(adcvalue > 0x0058){
+       isLowPower = 0;
        lowPowerWarnCount = 0;
     }
     
-    if(isLowPower == true){
+    if(isLowPower == 1){
       if(globalState == 1){
         lowPowerWarnCount++;
         HalLedSet( HAL_LED_3, HAL_LED_MODE_TOGGLE );
-        if(lowPowerWarnCount > 30)
+        if(lowPowerWarnCount > 30){
           systemSleep();
+        }
       }
       else
         HalLedSet( HAL_LED_3 , HAL_LED_MODE_ON);
@@ -991,6 +997,7 @@ static void systemWakeUp( void ){
   isAwake = true;
   osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
   osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
+  lowPowerWarnCount = 0;
 }
 
 static void systemSleep( void ){
