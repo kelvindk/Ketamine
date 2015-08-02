@@ -163,7 +163,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x32,   // '3'
+  0x31,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -875,19 +875,19 @@ static void defaultCheckTask( void ){
     HalAdcInit ();
     HalAdcSetReference (HAL_ADC_REF_AVDD);
     uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
-//    buf[0] = adcvalue & 0xFF;
-//    buf[1] = (adcvalue >> 8) & 0xFF;
-//    sendReadBuf(&noti, buf, 2, 0xBB);
-    if(globalState != 6 && globalState != 3){
-      if(adcvalue <= 0x0057)
+    buf[0] = adcvalue & 0xFF;
+    buf[1] = (adcvalue >> 8) & 0xFF;
+    sendReadBuf(&noti, buf, 2, 0xBB);
+    if(globalState == 1){
+      if(adcvalue < 88)
         isLowPower = 1;
     }
     else{
-      if(adcvalue <= 0x0052)
+      if(adcvalue < 81)
         isLowPower = 1;
     }
     
-    if(adcvalue > 0x0058){
+    if(adcvalue > 91){
        isLowPower = 0;
        lowPowerWarnCount = 0;
     }
