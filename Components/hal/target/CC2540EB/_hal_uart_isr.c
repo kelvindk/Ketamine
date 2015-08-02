@@ -141,7 +141,7 @@
 #define PxIEN                      P1IEN
 #define PICTL_BIT                  0x01
 #define IENx                       IEN2
-#define IEN_BIT                    0x10
+#define IEN_BIT                    0x103
 
 #else
 #define PxOUT                      P1

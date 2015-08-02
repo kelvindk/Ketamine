@@ -138,38 +138,38 @@ uint16 HalSensorTest(void)
 
   halSensorEnableMap = 0;
   selfTestResult = 0;
-  HalGyroTurnOn();
-
-  for  (i=0; i<N_TEST_RUNS; i++)
-  {
-    //HalLedSet(HAL_LED_2,HAL_LED_MODE_TOGGLE);
-
-    // 1. Temp sensor test
-    if (HalIRTempTest())
-      selfTestResult |= ST_IRTEMP;
-
-    // 2. Humidity  sensor test
-    if (HalHumiTest())
-      selfTestResult |= ST_HUMID;
-
-    // 3. Magnetometer test
-    if (HalMagTest())
-      selfTestResult |= ST_MAGN;
-
-    // 4. Accelerometer test
-    if (HalAccTest())
-      selfTestResult |= ST_ACC;
-
-    // 5. Barometer test
-    if (HalBarTest())
-      selfTestResult |= ST_PRESS;
-
-    // 6. Gyro test
-    if (HalGyroTest())
-      selfTestResult |= ST_GYRO;
-  }
-
-  HalGyroTurnOff();
+//  HalGyroTurnOn();
+//
+//  for  (i=0; i<N_TEST_RUNS; i++)
+//  {
+//    //HalLedSet(HAL_LED_2,HAL_LED_MODE_TOGGLE);
+//
+//    // 1. Temp sensor test
+//    if (HalIRTempTest())
+//      selfTestResult |= ST_IRTEMP;
+//
+//    // 2. Humidity  sensor test
+//    if (HalHumiTest())
+//      selfTestResult |= ST_HUMID;
+//
+//    // 3. Magnetometer test
+//    if (HalMagTest())
+//      selfTestResult |= ST_MAGN;
+//
+//    // 4. Accelerometer test
+//    if (HalAccTest())
+//      selfTestResult |= ST_ACC;
+//
+//    // 5. Barometer test
+//    if (HalBarTest())
+//      selfTestResult |= ST_PRESS;
+//
+//    // 6. Gyro test
+//    if (HalGyroTest())
+//      selfTestResult |= ST_GYRO;
+//  }
+//
+//  HalGyroTurnOff();
 
   return selfTestResult;
 }

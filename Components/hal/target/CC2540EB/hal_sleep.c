@@ -282,7 +282,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
   // TEMP
-  P1_0 = 1;
+  //P1_0 = 1;
 #endif // DEBUG_GPIO
 
   // max allowed sleep time in ms
@@ -338,7 +338,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
   // TEMP
-  P1_0 = 0;
+  //P1_0 = 0;
 #endif // DEBUG_GPIO
 
   // check if sleep should be entered
@@ -348,7 +348,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
     // TEMP
-    P1_0 = 1;
+    //P1_0 = 1;
 #endif // DEBUG_GPIO
 
     HAL_ASSERT( HAL_INTERRUPTS_ARE_ENABLED() );
@@ -363,10 +363,10 @@ void halSleep( uint32 osal_timeout )
 #endif // ((defined HAL_KEY) && (HAL_KEY == TRUE))
 
 #ifdef HAL_SLEEP_DEBUG_LED
-      HAL_TURN_OFF_LED3();
+      //HAL_TURN_OFF_LED3();                    // Turned off by Larry
 #else
       // use this to turn LEDs off during sleep
-      HalLedEnterSleep();
+      //HalLedEnterSleep();                     // Turned off by Larry
 #endif // HAL_SLEEP_DEBUG_LED
 
       // enable sleep timer interrupt
@@ -394,7 +394,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
       // TEMP
-      P1_0 = 0;
+      //P1_0 = 0;
 #endif // DEBUG_GPIO
 
       // set CC254x power mode; interrupts are disabled after this function
@@ -406,7 +406,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
       // TEMP
-      P1_0 = 1;
+      //P1_0 = 1;
 #endif // DEBUG_GPIO
 
       // check if ST interrupt pending, and if not, clear wakeForRF flag
@@ -433,10 +433,10 @@ void halSleep( uint32 osal_timeout )
       LL_PowerOnReq( (halPwrMgtMode == CC2540_PM3), wakeForRF );
 
 #ifdef HAL_SLEEP_DEBUG_LED
-      HAL_TURN_ON_LED3();
+      //HAL_TURN_ON_LED3();                     // Turned off by Larry
 #else //!HAL_SLEEP_DEBUG_LED
       // use this to turn LEDs back on after sleep
-      HalLedExitSleep();
+      //HalLedExitSleep();                      // Turned off by Larry
 #endif // HAL_SLEEP_DEBUG_LED
 
 #if ((defined HAL_KEY) && (HAL_KEY == TRUE))
@@ -450,7 +450,7 @@ void halSleep( uint32 osal_timeout )
 
 #ifdef DEBUG_GPIO
       // TEMP
-      P1_0 = 0;
+      //P1_0 = 0;
 #endif // DEBUG_GPIO
 
   return;

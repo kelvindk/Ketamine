@@ -228,11 +228,11 @@ void HalKeyInit( void )
   /* Start with key is not configured */
   HalKeyConfigured = FALSE;
 
-#if defined ( CC2540_MINIDK )
-  /* Rising/Falling edge configuratinn */
-  PICTL |= HAL_KEY_SW_1_EDGEBIT;   /* Set the edge bit to set falling edge to give int */
-  HAL_KEY_SW_1_IEN |= ( HAL_KEY_SW_1_IENBIT | HAL_KEY_SW_2_IENBIT );   /* enable CPU interrupt */
-#endif
+//#if defined ( CC2540_MINIDK )
+//  /* Rising/Falling edge configuratinn */
+//  PICTL |= HAL_KEY_SW_1_EDGEBIT;   /* Set the edge bit to set falling edge to give int */
+//  HAL_KEY_SW_1_IEN |= ( HAL_KEY_SW_1_IENBIT | HAL_KEY_SW_2_IENBIT );   /* enable CPU interrupt */
+//#endif
 }
 
 
@@ -295,7 +295,7 @@ void HalKeyConfig (bool interruptEnable, halKeyCBack_t cback)
      * - Clear any pending interrupt
      */
     HAL_KEY_JOY_MOVE_ICTL |= HAL_KEY_JOY_MOVE_ICTLBIT;
-    HAL_KEY_JOY_MOVE_IEN |= HAL_KEY_JOY_MOVE_IENBIT;
+    //HAL_KEY_JOY_MOVE_IEN |= HAL_KEY_JOY_MOVE_IENBIT;   //changed by larry
     HAL_KEY_JOY_MOVE_PXIFG = ~(HAL_KEY_JOY_MOVE_BIT);
 #endif // !CC2540_MINIDK
 
