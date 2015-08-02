@@ -163,7 +163,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x37,   // '3'
+  0x32,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -879,7 +879,7 @@ static void defaultCheckTask( void ){
 //    buf[1] = (adcvalue >> 8) & 0xFF;
 //    sendReadBuf(&noti, buf, 2, 0xBB);
     if(globalState != 6 && globalState != 3){
-      if(adcvalue <= 0x0058)
+      if(adcvalue <= 0x0057)
         isLowPower = 1;
     }
     else{
