@@ -162,7 +162,7 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '0'
+  0x31,   // '0'
   0x31,   // '3'
 
   // connection interval range
@@ -207,7 +207,7 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 12;
+static uint8 version = 16;
 static int advMax = 600;
 static int globalMax = 300;
 
@@ -507,9 +507,9 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
       }
    
       advCount = advCount + 1;
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
-      ST_HAL_DELAY(1000);
-      HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
+//      ST_HAL_DELAY(1000);
+//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
       
       if(advCount >= advMax){
         // DEBUG
@@ -702,8 +702,16 @@ static void peripheralStateNotificationCB( gaprole_States_t newState )
     case GAPROLE_CONNECTED:
       {
         // Reset advCount and globalCount once connection is set up.
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_ON );
+        ST_HAL_DELAY(1000);
+        HalLedSet( HAL_LED_2 , HAL_LED_MODE_OFF );
+  
         advCount = 0;
         globalCount = 0;
+        
+        if( globalState == 3 || globalState == 6){
+          serialCameraState = 0x31;
+        }
       }
       break;
 
@@ -840,15 +848,22 @@ static void defaultCheckTask( void ){
   attHandleValueNoti_t noti;
   uint8 buf[20];
   bool eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 4);
+  HalAdcInit ();
+  HalAdcSetReference (HAL_ADC_REF_AVDD);
+  uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
   
   if(eepResult == true ){
     if(gapProfileState == GAPROLE_CONNECTED ){
       buf[4] = globalState; // For debug
       buf[5] = isLowPower;
-      buf[6] = serialCameraState;
-      buf[7] = tmpRetransmitIdx;
-      buf[8] = retransmitSize;
-      sendReadBuf(&noti, buf, 9, 0xFB);
+      //buf[6] = serialCameraState;
+      buf[6] = (globalCount & 0xFF);
+      buf[7] = ((globalCount >> 8) & 0xFF);
+      buf[8] = (advCount & 0xFF);
+      buf[9] = ((advCount >> 8) & 0xFF);
+      buf[10] = adcvalue & 0xFF;
+      buf[11] = (adcvalue >> 8) & 0xFF;
+      sendReadBuf(&noti, buf, 12, 0xFB);
     }
     
     if( globalState == 2 || globalState == 3 || globalState == 6 || globalState == 7){
@@ -863,31 +878,22 @@ static void defaultCheckTask( void ){
       buf[0] = globalState; // For debug
       buf[1] = isLowPower;
       buf[2] = serialCameraState;
-      buf[3] = tmpRetransmitIdx;
-      buf[4] = retransmitSize;
-      sendReadBuf(&noti, buf, 5, 0xFA);
+      sendReadBuf(&noti, buf, 3, 0xFA);
     }
-    
+    globalState = 1;
     HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
   }
   
   if(isAwake == true){
-    HalAdcInit ();
-    HalAdcSetReference (HAL_ADC_REF_AVDD);
-    uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
-    buf[0] = adcvalue & 0xFF;
-    buf[1] = (adcvalue >> 8) & 0xFF;
-    sendReadBuf(&noti, buf, 2, 0xBB);
-    if(globalState == 1){
-      if(adcvalue < 88)
-        isLowPower = 1;
+    if(globalState == 1 && adcvalue < 84){
+      isLowPower = 1;
     }
-    else{
-      if(adcvalue < 81)
-        isLowPower = 1;
-    }
+//    else{
+//      if(adcvalue < 81)
+//        isLowPower = 1;
+//    }
     
-    if(adcvalue > 91){
+    if(adcvalue > 90){
        isLowPower = 0;
        lowPowerWarnCount = 0;
     }
@@ -897,7 +903,13 @@ static void defaultCheckTask( void ){
         lowPowerWarnCount++;
         HalLedSet( HAL_LED_3, HAL_LED_MODE_TOGGLE );
         if(lowPowerWarnCount > 30){
-          systemSleep();
+          //systemSleep();
+           if( gapProfileState == GAPROLE_CONNECTED )
+           {
+             GAPRole_TerminateConnection();
+           }
+           directTerminate = true;
+           resetFlag = true; 
         }
       }
       else
@@ -994,10 +1006,12 @@ static void systemWakeUp( void ){
   if(isAwake == false){
     initialParameter();
   }
-  isAwake = true;
-  osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
-  osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
   lowPowerWarnCount = 0;
+  gapProfileState = GAPROLE_INIT;
+  osal_set_event( Ketamine_TaskID, KTM_START_DEVICE_EVT );
+//  isAwake = true;
+//  osal_start_timerEx( Ketamine_TaskID, KTM_PERIODIC_EVT, KTM_BROADCAST_EVT_PERIOD);
+//  osal_set_event( Ketamine_TaskID, KTM_DEFAULT_EVT);
 }
 
 static void systemSleep( void ){
