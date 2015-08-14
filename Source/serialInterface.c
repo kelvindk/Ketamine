@@ -138,7 +138,9 @@ void cSerialPacketParser( uint8 port, uint8 events )
         }
         else{
           tmpRetransmitIdx++;
-          tmpPktIdx = retransmitBuf[tmpRetransmitIdx];
+          if(tmpRetransmitIdx < retransmitSize){
+            tmpPktIdx = retransmitBuf[tmpRetransmitIdx];
+          }
           waitCamera = 0;
         }
         pktRxByteOffset = 0;

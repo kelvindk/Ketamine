@@ -162,8 +162,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x31,   // '0'
-  0x31,   // '3'
+  0x30,   // '0'
+  0x33,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -207,7 +207,7 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 16;
+static uint8 version = 17;
 static int advMax = 600;
 static int globalMax = 300;
 
@@ -394,8 +394,6 @@ void Ketamine_Init( uint8 task_id )
   P1SEL = 0;
   P1DIR = 0xFF;
   P1 = 0x04;
-  
-  
   
   HalLedSet( (HAL_LED_1 | HAL_LED_2), HAL_LED_MODE_ON );
 
@@ -821,7 +819,7 @@ static void performPeriodicTask( void )
     HalUARTSuspend();
     osal_pwrmgr_device(PWRMGR_BATTERY);
     P1_3 = 0;
-    HalLedSet( HAL_LED_1 | HAL_LED_2 , HAL_LED_MODE_ON );
+    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_ON );
     ST_HAL_DELAY(1000);
     HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
     break;
@@ -856,14 +854,16 @@ static void defaultCheckTask( void ){
     if(gapProfileState == GAPROLE_CONNECTED ){
       buf[4] = globalState; // For debug
       buf[5] = isLowPower;
-      //buf[6] = serialCameraState;
       buf[6] = (globalCount & 0xFF);
       buf[7] = ((globalCount >> 8) & 0xFF);
       buf[8] = (advCount & 0xFF);
       buf[9] = ((advCount >> 8) & 0xFF);
       buf[10] = adcvalue & 0xFF;
       buf[11] = (adcvalue >> 8) & 0xFF;
-      sendReadBuf(&noti, buf, 12, 0xFB);
+      buf[12] = serialCameraState;
+      buf[13] = retransmitSize;
+      buf[14] = tmpRetransmitIdx;
+      sendReadBuf(&noti, buf, 15, 0xFB);
     }
     
     if( globalState == 2 || globalState == 3 || globalState == 6 || globalState == 7){
@@ -881,6 +881,7 @@ static void defaultCheckTask( void ){
       sendReadBuf(&noti, buf, 3, 0xFA);
     }
     globalState = 1;
+    SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
     HalLedSet( HAL_LED_4, HAL_LED_MODE_OFF);
   }
   
@@ -1043,6 +1044,7 @@ void initialParameter(void){
   P1_3 = 0;
 }
 
+
 void parseBLECmd(uint8 value){
   if( (value & 0xF0) == 0){
     if(waitBLEAck != 0)
@@ -1166,9 +1168,8 @@ static void takePicture(uint8 mode){
       }
     
       waitCamera++;
-      waitCamera %= 20;
-      if(waitCamera == 19){
-        //waitBLEAck = 0;
+      waitCamera %= 50;
+      if(waitCamera == 49){
         waitCamera = 0;
         globalState = 7;
         SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
