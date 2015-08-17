@@ -163,7 +163,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x30,   // '0'
-  0x33,   // '3'
+  0x31,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -207,9 +207,10 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 17;
+static uint8 version = 18;
 static int advMax = 600;
 static int globalMax = 300;
+static int waitCameraMax = 100;
 
 int globalCount = 0;
 int advCount = 0;
@@ -1116,6 +1117,7 @@ static void takePicture(uint8 mode){
       if(waitBLEAck == 5){
         serialCameraState = 0x30;
         waitBLEAck = 0;
+        waitCameraMax = 0.1 * pktCnt;
       }
       else{
         notifyPicInfo();
@@ -1147,6 +1149,20 @@ static void takePicture(uint8 mode){
         isLastPkt = 0;
       }
      
+      waitCamera++;
+      if(waitCamera > waitCameraMax){
+        serialCameraState = 0x31;
+        isLastPkt = 0;
+        waitCamera = 0;
+        if( retransmitSize != 0 ){
+          tmpRetransmitIdx = 0;
+          tmpPktIdx = retransmitBuf[0];
+          if(tmpPktIdx == pktCnt-1){
+            isLastPkt = 1;
+          }
+        }
+      }
+      
       break;
     }
     case 0x31:{        

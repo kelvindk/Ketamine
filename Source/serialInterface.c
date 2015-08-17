@@ -112,6 +112,7 @@ void cSerialPacketParser( uint8 port, uint8 events )
         sendData(pktRxByteOffset);
         if(serialCameraState == 0x30){
           tmpPktIdx++;
+          waitCamera = 0;
           
 //          if(tmpPktIdx == pktCnt){
 //            //getPictureData(0xF0F0);
