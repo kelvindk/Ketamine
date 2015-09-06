@@ -162,8 +162,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x30,   // '0'
-  0x31,   // '3'
+  0x32,   // '0'
+  0x35,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -207,7 +207,7 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 18;
+static uint8 version = 19;
 static int advMax = 600;
 static int globalMax = 300;
 static int waitCameraMax = 100;
@@ -488,42 +488,30 @@ uint16 Ketamine_ProcessEvent( uint8 task_id, uint16 events )
   {
     if( gapProfileState != GAPROLE_CONNECTED )
     {
+      advCount = advCount + 1;
+      
       if(resetFlag == true){
         initialParameter();
         resetFlag = false;
       }
       
-      if(directTerminate == true){
+      if(directTerminate == true || advCount >= advMax){
         initialParameter();   // 7/26
+        HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
         directTerminate = false;
         uint8 disabled = FALSE;
         GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
         stopCheckTask();
-        HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
+        
+        HalUARTSuspend();
+        osal_pwrmgr_device(PWRMGR_BATTERY);
+        P1_3 = 0;
+        
         isAwake = false;  
         InitBoard( OB_READY );
         return (events ^ KTM_PERIODIC_EVT);
       }
-   
-      advCount = advCount + 1;
-//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_ON );
-//      ST_HAL_DELAY(1000);
-//      HalLedSet( HAL_LED_1 , HAL_LED_MODE_OFF );
-      
-      if(advCount >= advMax){
-        // DEBUG
-        initialParameter();
-        HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
-        advCount = 0;
-        //globalState = 1;
-        uint8 disabled = FALSE;
-        GAPRole_SetParameter( GAPROLE_ADVERT_ENABLED, sizeof( uint8 ), &disabled );
-        stopCheckTask();
-        isAwake = false;
-        InitBoard( OB_READY );
-        return (events ^ KTM_PERIODIC_EVT);
-      }
-      
+    
       uint8 current_adv_enabled_status;
       uint8 new_adv_enabled_status;
 
@@ -820,9 +808,9 @@ static void performPeriodicTask( void )
     HalUARTSuspend();
     osal_pwrmgr_device(PWRMGR_BATTERY);
     P1_3 = 0;
-    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_ON );
-    ST_HAL_DELAY(1000);
-    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
+//    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_ON );
+//    ST_HAL_DELAY(1000);
+//    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
     break;
   }
   case 8:{
@@ -857,8 +845,9 @@ static void defaultCheckTask( void ){
       buf[5] = isLowPower;
       buf[6] = (globalCount & 0xFF);
       buf[7] = ((globalCount >> 8) & 0xFF);
-      buf[8] = (advCount & 0xFF);
-      buf[9] = ((advCount >> 8) & 0xFF);
+      buf[8] = (waitCamera & 0xFF);
+      //buf[9] = ((waitCamera >> 8) & 0xFF);
+      buf[9] = 0;
       buf[10] = adcvalue & 0xFF;
       buf[11] = (adcvalue >> 8) & 0xFF;
       buf[12] = serialCameraState;
@@ -890,22 +879,17 @@ static void defaultCheckTask( void ){
     if(globalState == 1 && adcvalue < 84){
       isLowPower = 1;
     }
-//    else{
-//      if(adcvalue < 81)
-//        isLowPower = 1;
-//    }
     
     if(adcvalue > 90){
        isLowPower = 0;
        lowPowerWarnCount = 0;
     }
     
-    if(isLowPower == 1){
-      if(globalState == 1){
+    if(globalState == 1){
+      if(isLowPower == 1){
         lowPowerWarnCount++;
         HalLedSet( HAL_LED_3, HAL_LED_MODE_TOGGLE );
         if(lowPowerWarnCount > 30){
-          //systemSleep();
            if( gapProfileState == GAPROLE_CONNECTED )
            {
              GAPRole_TerminateConnection();
@@ -964,6 +948,10 @@ static void simpleProfileChangeCB( uint8 paramID )
         retransmitSize = 0;
         tmpRetransmitIdx = 0;
       }
+      else if(newValue == 7){
+        getPictureData(0xF0F0);
+        serialCameraState = 0;
+      }
       break;
   }
   case SIMPLEPROFILE_CHAR3:{
@@ -979,6 +967,7 @@ static void simpleProfileChangeCB( uint8 paramID )
       }
       else if(command[0] == 0xA3){
         if(retransmitSize == 0){
+          waitCamera = 0;
           retransmitSize = command[1];
           tmpRetransmitIdx = 0;
           int i;
@@ -1003,11 +992,14 @@ static void simpleProfileChangeCB( uint8 paramID )
 }
 
 static void systemWakeUp( void ){
+  HalLedSet( HAL_LED_1| HAL_LED_2| HAL_LED_3| HAL_LED_4, HAL_LED_MODE_OFF );
   stopCheckTask();
   stopPeriodicTask();
   if(isAwake == false){
     initialParameter();
   }
+  
+  advCount = 0;
   lowPowerWarnCount = 0;
   gapProfileState = GAPROLE_INIT;
   osal_set_event( Ketamine_TaskID, KTM_START_DEVICE_EVT );
@@ -1051,12 +1043,6 @@ void parseBLECmd(uint8 value){
     if(waitBLEAck != 0)
       waitBLEAck = value;
   }
-//  else{
-//    //requestDataFrom(value & 0x0F);
-//    tmpPktIdx = value & 0x0F;
-//    getPictureData(tmpPktIdx);
-//    //waitBLEAck = 0xF0;
-//  }
 }
 
 static void takePicture(uint8 mode){
@@ -1184,8 +1170,9 @@ static void takePicture(uint8 mode){
       }
     
       waitCamera++;
-      waitCamera %= 50;
-      if(waitCamera == 49){
+      waitCamera %= 80;
+      if(waitCamera == 79){
+        getPictureData(0xF0F0);
         waitCamera = 0;
         globalState = 7;
         SimpleProfile_SetParameter( SIMPLEPROFILE_CHAR1, sizeof(globalState), &globalState );
