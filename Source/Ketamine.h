@@ -78,8 +78,10 @@ extern "C"
  * FUNCTIONS
  */
   
-extern void OpenUART(void);
-extern void CloseUART(void);
+extern void stopPeriodicTask( void );
+
+
+extern uint8 Ketamine_TaskID;
 extern uint8 serialCameraState;
 extern uint8 waitCamera;
 extern uint8 globalState;

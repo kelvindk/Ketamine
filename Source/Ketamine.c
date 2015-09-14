@@ -93,7 +93,7 @@
 #define KTM_PERIODIC_EVT_PERIOD                         1000
 #define KTM_DEFAULT_EVT_PERIOD                          1000
 #define KTM_CHECKINTERRUPT_PEROID                       250
-#define KTM_SENDDATA_PERIOD                             400
+#define KTM_SENDDATA_PERIOD                             1000
 
 // What is the advertising interval when device is discoverable (units of 625us, 160=100ms)
 #define DEFAULT_ADVERTISING_INTERVAL          160
@@ -148,7 +148,7 @@
 /*********************************************************************
  * LOCAL VARIABLES
  */
-static uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
+uint8 Ketamine_TaskID;   // Task ID for internal task/event processing
 static gaprole_States_t gapProfileState = GAPROLE_INIT;
 
 // GAP - SCAN RSP data (max size = 31 bytes)
@@ -163,7 +163,7 @@ static uint8 scanRspData[] =
   0x5f,   // '-'
   0x30,   // '0'
   0x32,   // '0'
-  0x35,   // '3'
+  0x31,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -207,7 +207,7 @@ static bool isAwake = false;
 static bool directTerminate = false;
 static uint8 isLowPower = 0;
 
-static uint8 version = 19;
+static uint8 version = 20;
 static int advMax = 600;
 static int globalMax = 300;
 static int waitCameraMax = 100;
@@ -234,7 +234,6 @@ static void Ketamine_ProcessOSALMsg( osal_event_hdr_t *pMsg );
 static void peripheralStateNotificationCB( gaprole_States_t newState );
 static void performPeriodicTask( void );
 static void defaultCheckTask( void );
-static void stopPeriodicTask( void );
 static void stopCheckTask( void );
 static void simpleProfileChangeCB( uint8 paramID );
 static void systemWakeUp( void );
@@ -808,9 +807,6 @@ static void performPeriodicTask( void )
     HalUARTSuspend();
     osal_pwrmgr_device(PWRMGR_BATTERY);
     P1_3 = 0;
-//    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_ON );
-//    ST_HAL_DELAY(1000);
-//    HalLedSet( HAL_LED_1 | HAL_LED_2, HAL_LED_MODE_OFF );
     break;
   }
   case 8:{
@@ -846,7 +842,6 @@ static void defaultCheckTask( void ){
       buf[6] = (globalCount & 0xFF);
       buf[7] = ((globalCount >> 8) & 0xFF);
       buf[8] = (waitCamera & 0xFF);
-      //buf[9] = ((waitCamera >> 8) & 0xFF);
       buf[9] = 0;
       buf[10] = adcvalue & 0xFF;
       buf[11] = (adcvalue >> 8) & 0xFF;
@@ -1194,7 +1189,7 @@ void getPictureData(uint16 pktIdx){
   sendCmd(cmd, 6);
 }
 
-static void stopPeriodicTask( void ){
+void stopPeriodicTask( void ){
   uint8 result = osal_stop_timerEx(Ketamine_TaskID, KTM_PERIODIC_EVT);
   if(result == INVALID_EVENT_ID){
     osal_clear_event(Ketamine_TaskID, KTM_PERIODIC_EVT);

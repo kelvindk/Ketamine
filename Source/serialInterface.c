@@ -113,29 +113,6 @@ void cSerialPacketParser( uint8 port, uint8 events )
         if(serialCameraState == 0x30){
           tmpPktIdx++;
           waitCamera = 0;
-          
-//          if(tmpPktIdx == pktCnt){
-//            //getPictureData(0xF0F0);
-//            attHandleValueNoti_t noti;
-//            uint8 buf[20];
-//            sendReadBuf(&noti, buf, 0, 0xA9);
-//            serialCameraState = 0x31;
-//            isLastPkt = 0;
-//            waitCamera = 0;
-//            if( retransmitSize != 0 ){
-//              tmpRetransmitIdx = 0;
-//              tmpPktIdx = retransmitBuf[0];
-//              if(tmpPktIdx == pktCnt-1){
-//                isLastPkt = 1;
-//              }
-//            }
-//            retransmitSize = 1;
-//            tmpRetransmitIdx = 0;
-//            retransmitBuf[0] = 6;
-//            //retransmitBuf[1] = 19;
-//            tmpPktIdx = retransmitBuf[0];
-//            return;
-//          }
         }
         else{
           tmpRetransmitIdx++;
@@ -145,6 +122,8 @@ void cSerialPacketParser( uint8 port, uint8 events )
           waitCamera = 0;
         }
         pktRxByteOffset = 0;
+        stopPeriodicTask();
+        osal_set_event( Ketamine_TaskID, KTM_PERIODIC_EVT);
       }
     }
   }
