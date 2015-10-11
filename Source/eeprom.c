@@ -1,5 +1,7 @@
 #include "eeprom.h"
 
+uint8 dummyChar = 0;
+
 void i2c_eeprom_write_byte(uint8 deviceaddress, uint8 eeaddress, uint8 data){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
     HalSensorWriteReg(eeaddress, &data, sizeof(data));
@@ -24,7 +26,9 @@ uint8 i2c_eeprom_read_byte(uint8 deviceaddress, uint8 eeaddress){
 }
 bool i2c_eeprom_read_buffer(uint8 deviceaddress, uint8 eeaddresspage, uint8* buffer, uint8 length){
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
-    HalSensorWriteReg(eeaddresspage, NULL, 0);
+    bool isConnected = HalSensorWriteReg(eeaddresspage, &dummyChar, 0);
+    if(isConnected == false)
+      return false;
 
     HalI2CInit(deviceaddress, i2cClock_267KHZ);
     return HalSensorReadReg(eeaddresspage, buffer, length);

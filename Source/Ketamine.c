@@ -162,8 +162,8 @@ static uint8 scanRspData[] =
   0x74,   // 't'
   0x5f,   // '-'
   0x30,   // '0'
-  0x32,   // '0'
-  0x31,   // '3'
+  0x33,   // '0'
+  0x32,   // '3'
 
   // connection interval range
   0x05,   // length of this data
@@ -830,7 +830,9 @@ static void performPeriodicTask( void )
 static void defaultCheckTask( void ){
   attHandleValueNoti_t noti;
   uint8 buf[20];
+  HalI2CInit(EEPROM_ADDR, i2cClock_267KHZ);
   bool eepResult = i2c_eeprom_read_buffer(EEPROM_ADDR, 0, buf, 4);
+  //bool eepResult = true;
   HalAdcInit ();
   HalAdcSetReference (HAL_ADC_REF_AVDD);
   uint16 adcvalue = HalAdcRead (HAL_ADC_CHANNEL_6, HAL_ADC_RESOLUTION_10);
